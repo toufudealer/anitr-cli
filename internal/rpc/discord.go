@@ -8,14 +8,19 @@ import (
 	"github.com/xeyossr/anitr-cli/internal"
 )
 
+var loggedIn bool
+
 func DiscordRPC(params internal.RPCParams) error {
-	err := client.Login("1383421771159572600")
-	if err != nil {
-		return err
+	if !loggedIn {
+		err := client.Login("1383421771159572600")
+		if err != nil {
+			return fmt.Errorf("failed to log in to Discord RPC: %v", err)
+		}
+		loggedIn = true
 	}
 
 	now := time.Now()
-	err = client.SetActivity(client.Activity{
+	err := client.SetActivity(client.Activity{
 		State:      params.State,
 		Details:    fmt.Sprintf("Watching %s", params.Details),
 		LargeImage: params.LargeImage,
@@ -34,7 +39,7 @@ func DiscordRPC(params internal.RPCParams) error {
 	})
 
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to set activity: %v", err)
 	}
 
 	return nil

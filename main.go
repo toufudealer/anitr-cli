@@ -260,26 +260,24 @@ func main() {
 				selectedResolutionIdx = len(urls) - 1
 			}
 
-			err = player.Play(urls[selectedResolutionIdx], &subtitle)
-			checkErr(err)
-
 			if !*disableRpc {
 				state := selectedAnimeName
 				if !isMovie {
-					state = fmt.Sprintf("%s (%d)", episodeNames[selectedEpisodeIndex], selectedEpisodeIndex+1)
+					state = fmt.Sprintf("%s (%d/%d)", episodeNames[selectedEpisodeIndex], selectedEpisodeIndex+1, len(episodes))
 				}
 
-				go func() {
-					if err := rpc.DiscordRPC(internal.RPCParams{
-						Details:    selectedAnimeName,
-						State:      state,
-						LargeImage: posterUrl,
-						LargeText:  selectedAnimeName,
-					}); err != nil {
-						checkErr(err)
-					}
-				}()
+				if err := rpc.DiscordRPC(internal.RPCParams{
+					Details:    selectedAnimeName,
+					State:      state,
+					LargeImage: posterUrl,
+					LargeText:  selectedAnimeName,
+				}); err != nil {
+					checkErr(err)
+				}
 			}
+
+			err = player.Play(urls[selectedResolutionIdx], &subtitle)
+			checkErr(err)
 
 		case "Çözünürlük seç":
 			data, err := updateWatchApi(episodes, selectedEpisodeIndex, selectedAnimeID, selectedSeasonIndex, selectedEpisodeIndex, isMovie)
@@ -317,16 +315,14 @@ func main() {
 			if !*disableRpc {
 				totalEpisodes := len(episodes)
 				state := fmt.Sprintf("%s (%d/%d)", episodeNames[selectedEpisodeIndex], selectedEpisodeIndex+1, totalEpisodes)
-				go func() {
-					if err := rpc.DiscordRPC(internal.RPCParams{
-						Details:    selectedAnimeName,
-						State:      state,
-						LargeImage: posterUrl,
-						LargeText:  selectedAnimeName,
-					}); err != nil {
-						checkErr(err)
-					}
-				}()
+				if err := rpc.DiscordRPC(internal.RPCParams{
+					Details:    selectedAnimeName,
+					State:      state,
+					LargeImage: posterUrl,
+					LargeText:  selectedAnimeName,
+				}); err != nil {
+					checkErr(err)
+				}
 			}
 
 		case "Çık":
