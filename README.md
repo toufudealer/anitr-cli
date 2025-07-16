@@ -1,10 +1,4 @@
 <div align="center">
-  <h1>Önizleme</h1>
-
-  [preview.mp4](https://github.com/user-attachments/assets/199d940e-14c6-468c-9120-496185ab2217)
-
-  ![Discord RPC](.github/discord_rpc1.png)
-
   **anitr-cli:** Hızlı bir şekilde anime araması yapabileceğiniz ve istediğiniz animeyi Türkçe altyazılı izleyebileceğiniz terminal aracıdır 💫 Anime severler için hafif, pratik ve kullanışlı bir çözüm sunar 🚀
 
   <p>
