@@ -1,10 +1,14 @@
-# Makefile
-
 GO=go
 BINARY_NAME=anitr-cli
 INSTALL_DIR=/usr/bin
 
-build:
+mod-init:
+	$(GO) mod init
+
+mod-tidy:
+	$(GO) mod tidy
+
+build: mod-tidy
 	$(GO) build -o $(BINARY_NAME)
 
 run: build
@@ -18,4 +22,4 @@ install: build
 clean:
 	rm -f $(BINARY_NAME)
 
-all: build install
+all: mod-tidy build install
