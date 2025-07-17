@@ -34,7 +34,7 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          git clone --depth=1 ssh://aur@aur.archlinux.org/terminalwrap.git aur-repo
+          git clone --depth=1 ssh://aur@aur.archlinux.org/anitr-cli.git aur-repo
           cp aur/PKGBUILD aur/.SRCINFO aur-repo/
           cd aur-repo
           git add PKGBUILD .SRCINFO
