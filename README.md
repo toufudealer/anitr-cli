@@ -37,14 +37,14 @@ sudo chmod +x /usr/bin/anitr-cli
 #### Güncelleme
 
 Her çalıştırdığınızda yeni bir güncelleme olup olmadığı denetlenecektir. Eğer güncelleme mevcutsa, şu komutla güncelleyebilirsiniz:
-```bash
-anitr-cli --update
-```
 
 - **AUR** üzerinden kurulum yaptıysanız:
 ```bash
 yay -Sy anitr-cli
 ```
+
+- **Manuel** kurulum yaptıysanız:
+> Eğer manuel kurulum yaptıysanız, güncellemeleri manuel olarak yapmanız gerekmektedir. Alternatif olarak, [anitrcli-update](anitrcli-update) betiğini indirip `/usr/bin` dizinine yerleştirerek otomatik güncelleme yapabilirsiniz.
 
 
 ### 🪟 Windows Kullanıcıları
