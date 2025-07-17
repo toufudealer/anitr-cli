@@ -128,8 +128,6 @@ func main() {
 	}
 	defer logger.Close()
 
-	update.CheckUpdates()
-
 	log.SetFlags(0)
 	uiMode := "tui"
 
@@ -155,6 +153,7 @@ func main() {
 		uiMode = "rofi"
 	}
 
+	update.CheckUpdates()
 	ui.ClearScreen()
 	query, err := ui.InputFromUser(internal.UiParams{Mode: uiMode, RofiFlags: rofiFlags, Label: "Anime ara "})
 	FailIfErr(err, logger)
