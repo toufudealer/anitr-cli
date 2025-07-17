@@ -1,4 +1,6 @@
-<div align="center">
+<div>
+ 
+ # ANITR-CLI
   **anitr-cli:** Hızlı bir şekilde anime araması yapabileceğiniz ve istediğiniz animeyi Türkçe altyazılı izleyebileceğiniz terminal aracıdır 💫 Anime severler için hafif, pratik ve kullanışlı bir çözüm sunar 🚀
 
   <p>
@@ -24,23 +26,17 @@ Eğer Arch tabanlı bir dağıtım kullanıyorsanız, [AUR](https://aur.archlinu
 yay -S anitr-cli
 ```
 
-Eğer Arch tabanlı olmayan bir dağıtım kullanıyorsanız, anitr-cli'yi [releases](https://github.com/xeyossr/anitr-cli/releases) sayfasından `.tar.gz` formatında indirip, `tar` ile çıkararak ve ardından `make` ile kurabilirsiniz:
-
+Eğer Arch tabanlı olmayan bir dağıtım kullanıyorsanız, **en son sürümü** indirmek için aşağıdaki komutları kullanabilirsiniz:
 ```bash
-curl -L -o /tmp/anitr-cli.tar.gz https://github.com/xeyossr/anitr-cli/releases/latest/download/anitr-cli.tar.gz
-# İndirilen .tar.gz dosyasını çıkarın
-tar -xvzf /tmp/anitr-cli.tar.gz -C /tmp
+curl -L -o /tmp/anitr-cli https://github.com/xeyossr/anitr-cli/releases/latest/download/anitr-cli
 
-# Make ile kurulum yapın
-cd /tmp/anitr-cli
-make install
+sudo mv /tmp/anitr-cli /usr/bin/anitr-cli
+sudo chmod +x /usr/bin/anitr-cli
 ```
 
 #### Güncelleme
 
 Her çalıştırdığınızda yeni bir güncelleme olup olmadığı denetlenecektir. Eğer güncelleme mevcutsa, şu komutla güncelleyebilirsiniz:
-
-- **.tar.gz** dosyasından kurulum yaptıysanız:
 ```bash
 anitr-cli --update
 ```
