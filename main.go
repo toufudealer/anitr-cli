@@ -17,12 +17,24 @@ import (
 	"github.com/xeyossr/anitr-cli/internal/rpc"
 	"github.com/xeyossr/anitr-cli/internal/ui"
 	"github.com/xeyossr/anitr-cli/internal/update"
+	"github.com/xeyossr/anitr-cli/internal/utils"
 )
 
-func checkErr(err error) {
+func FailIfErr(err error, logger *utils.Logger) {
 	if err != nil {
-		log.Fatal(err)
+		logger.LogError(err)
+		log.Fatalf("\033[31mKritik hata: %v\033[0m", err)
 	}
+}
+
+func checkErr(err error, logger *utils.Logger) bool {
+	if err != nil {
+		logger.LogError(err)
+		fmt.Printf("\n\033[31mHata oluştu: %v\033[0m\nLog detayları: %s\nDevam etmek için bir tuşa basın...\n", err, logger.File.Name())
+		fmt.Scanln()
+		return false
+	}
+	return true
 }
 
 func isValidImage(url string) bool {
@@ -110,6 +122,11 @@ func updateWatchApi(episodeData []map[string]interface{}, index, id, seasonIndex
 }
 
 func main() {
+	logger, err := utils.NewLogger()
+	if err != nil {
+		panic(err)
+	}
+	defer logger.Close()
 
 	update.CheckUpdates()
 
@@ -130,7 +147,7 @@ func main() {
 
 	if *checkUpdate {
 		err := update.RunUpdate()
-		checkErr(err)
+		FailIfErr(err, logger)
 		return
 	}
 
@@ -140,10 +157,10 @@ func main() {
 
 	ui.ClearScreen()
 	query, err := ui.InputFromUser(internal.UiParams{Mode: uiMode, RofiFlags: rofiFlags, Label: "Anime ara "})
-	checkErr(err)
+	FailIfErr(err, logger)
 
 	searchData, err := animecix.FetchAnimeSearchData(query)
-	checkErr(err)
+	FailIfErr(err, logger)
 	if searchData == nil {
 		log.Fatal("\033[31m[!] Arama sonucu bulunamadı!\033[0m")
 	}
@@ -163,7 +180,7 @@ func main() {
 	}
 
 	selectedAnimeName, err := ui.SelectionList(internal.UiParams{Mode: uiMode, RofiFlags: rofiFlags, List: &animeNames, Label: "Anime seç "})
-	checkErr(err)
+	FailIfErr(err, logger)
 	if selectedAnimeName == "" {
 		return
 	}
@@ -197,7 +214,7 @@ func main() {
 
 	if !isMovie {
 		episodes, err = animecix.FetchAnimeEpisodesData(selectedAnimeID)
-		checkErr(err)
+		FailIfErr(err, logger)
 		for _, e := range episodes {
 			episodeNames = append(episodeNames, internal.GetString(e, "name"))
 		}
@@ -219,7 +236,7 @@ func main() {
 			List:      &watchMenu,
 			Label:     selectedAnimeName,
 		})
-		checkErr(err)
+		FailIfErr(err, logger)
 
 		switch option {
 		case "İzle", "Sonraki bölüm", "Önceki bölüm":
@@ -243,7 +260,9 @@ func main() {
 			selectedSeasonIndex = int(episodes[selectedEpisodeIndex]["season_num"].(float64)) - 1
 
 			data, err := updateWatchApi(episodes, selectedEpisodeIndex, selectedAnimeID, selectedSeasonIndex, selectedEpisodeIndex, isMovie)
-			checkErr(err)
+			if !checkErr(err, logger) {
+				continue
+			}
 
 			labels := data["labels"].([]string)
 			urls := data["urls"].([]string)
@@ -272,16 +291,20 @@ func main() {
 					LargeImage: posterUrl,
 					LargeText:  selectedAnimeName,
 				}); err != nil {
-					checkErr(err)
+					logger.LogError(err)
 				}
 			}
 
 			err = player.Play(urls[selectedResolutionIdx], &subtitle)
-			checkErr(err)
+			if !checkErr(err, logger) {
+				continue
+			}
 
 		case "Çözünürlük seç":
 			data, err := updateWatchApi(episodes, selectedEpisodeIndex, selectedAnimeID, selectedSeasonIndex, selectedEpisodeIndex, isMovie)
-			checkErr(err)
+			if !checkErr(err, logger) {
+				continue
+			}
 
 			labels := data["labels"].([]string)
 			selected, err := ui.SelectionList(internal.UiParams{
@@ -290,7 +313,9 @@ func main() {
 				List:      &labels,
 				Label:     "Çözünürlük seç ",
 			})
-			checkErr(err)
+			if !checkErr(err, logger) {
+				continue
+			}
 
 			selectedResolution = selected
 			selectedResolutionIdx = slices.Index(labels, selected)
@@ -302,7 +327,9 @@ func main() {
 				List:      &episodeNames,
 				Label:     "Bölüm seç ",
 			})
-			checkErr(err)
+			if !checkErr(err, logger) {
+				continue
+			}
 
 			if selected != "" {
 				selectedEpisodeIndex = slices.Index(episodeNames, selected)
@@ -321,7 +348,7 @@ func main() {
 					LargeImage: posterUrl,
 					LargeText:  selectedAnimeName,
 				}); err != nil {
-					checkErr(err)
+					logger.LogError(err)
 				}
 			}
 

@@ -64,5 +64,10 @@ func (l *Logger) LogError(err error) {
 		return
 	}
 
+	log.SetOutput(l.File)
 	log.Printf("[ERROR] %v\n", err)
+}
+
+func (l *Logger) Close() {
+	l.File.Close()
 }
