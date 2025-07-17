@@ -63,7 +63,7 @@ func FetchUpdates() (msg, downloadUrl string, err error) {
 func RunUpdate() error {
 	fmt.Println(ColorYellow + "UYARI: Bu güncelleme yöntemi eski (deprecated) hâle gelmiştir." + ColorReset)
 	fmt.Println(ColorYellow + "Lütfen anitr-cli'yi manuel olarak güncelleyiniz." + ColorReset)
-	fmt.Println(ColorYellow + "Yeni sürümü edinmek için GitHub sayfasını ziyaret edin: https://github.com/kamisaki/anitr-cli" + ColorReset)
+	fmt.Println(ColorYellow + "Yeni sürümü edinmek için GitHub sayfasını ziyaret edin: https://github.com/xeyossr/anitr-cli" + ColorReset)
 	return nil
 }
 
@@ -81,7 +81,6 @@ func CheckUpdates() {
 
 	if msg != "Zaten en son sürümdesiniz." {
 		fmt.Println(ColorCyan + msg + ColorReset)
-		fmt.Println(ColorYellow + "Yeni sürümü yüklemek için 'anitr-cli --update' komutunu kullanabilirsiniz." + ColorReset)
 		os.Exit(0)
 	}
 }
