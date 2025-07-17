@@ -221,6 +221,13 @@ func main() {
 		selectedSeasonIndex = int(episodes[selectedEpisodeIndex]["season_num"].(float64)) - 1
 	} else {
 		episodeNames = []string{selectedAnimeName}
+		episodes = []map[string]interface{}{
+			{
+				"name":       selectedAnimeName,
+				"season_num": float64(1),
+			},
+		}
+		selectedSeasonIndex = 0
 	}
 
 	for {
