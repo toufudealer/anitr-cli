@@ -1,0 +1,4 @@
+curl -L -o /tmp/anitr-cli https://github.com/xeyossr/anitr-cli/releases/latest/download/anitr-cli
+
+sudo mv /tmp/anitr-cli /usr/bin/anitr-cli
+sudo chmod +x /usr/bin/anitr-cli
