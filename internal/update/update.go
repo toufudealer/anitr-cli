@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"runtime"
 
 	"github.com/Masterminds/semver/v3"
@@ -19,15 +18,6 @@ const (
 	ColorYellow = "\033[33m"
 	ColorCyan   = "\033[36m"
 )
-
-func isWritable(path string) bool {
-	file, err := os.OpenFile(path, os.O_WRONLY, 0)
-	if err != nil {
-		return false
-	}
-	file.Close()
-	return true
-}
 
 func fetchApi(url string) (interface{}, error) {
 	resp, err := http.Get(url)
@@ -71,59 +61,9 @@ func FetchUpdates() (msg, downloadUrl string, err error) {
 }
 
 func RunUpdate() error {
-	msg, downloadUrl, err := FetchUpdates()
-
-	if err != nil {
-		return err
-	}
-
-	if msg == "Zaten en son sürümdesiniz." {
-		fmt.Println(ColorGreen + msg + ColorReset)
-		return nil
-	}
-
-	exePath, err := os.Executable()
-	if err != nil {
-		return err
-	}
-
-	if !isWritable(exePath) {
-		fmt.Println(ColorRed + "Bu dosyayı güncellemek için yeterli izniniz yok." + ColorReset)
-		fmt.Println(ColorYellow + "Lütfen şu komutla tekrar deneyin:\n  sudo anitr-cli --update" + ColorReset)
-		return fmt.Errorf("permission denied: %s", exePath)
-	}
-
-	tmpFilePath := filepath.Join(exePath, "anitr-cli.tmp")
-
-	resp, err := http.Get(downloadUrl)
-	if err != nil {
-		return err
-	}
-
-	defer resp.Body.Close()
-
-	out, err := os.Create(tmpFilePath)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, resp.Body)
-	if err != nil {
-		return err
-	}
-
-	if err := os.Chmod(tmpFilePath, 0755); err != nil {
-		return err
-	}
-
-	err = os.Rename(tmpFilePath, exePath)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println(ColorGreen + "Başarıyla güncellendi!" + ColorReset)
-
+	fmt.Println(ColorYellow + "UYARI: Bu güncelleme yöntemi eski (deprecated) hâle gelmiştir." + ColorReset)
+	fmt.Println(ColorYellow + "Lütfen anitr-cli'yi manuel olarak güncelleyiniz." + ColorReset)
+	fmt.Println(ColorYellow + "Yeni sürümü edinmek için GitHub sayfasını ziyaret edin: https://github.com/kamisaki/anitr-cli" + ColorReset)
 	return nil
 }
 
