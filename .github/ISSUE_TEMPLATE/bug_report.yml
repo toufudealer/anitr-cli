@@ -1,0 +1,36 @@
+name: 🐛 Hata Bildirimi (Bug Report)
+description: Bir hata veya beklenmeyen davranışı raporlayın
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: input
+    id: environment
+    attributes:
+      label: Ortam
+      description: OS, Go versiyonu vb.
+      placeholder: "e.g. Arch Linux (AUR), Go 1.24.5"
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: Ne Oldu?
+      description: Hatanın ne olduğunu ve ne olmasını beklediğinizi açıkça yazın.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Yeniden Üretme Adımları
+      description: Hatayı yeniden oluşturmak için izlenmesi gereken adımları sıralayın.
+      placeholder: |
+        1. anitr-cli'yi çalıştır
+        2. [...] animesini arat ve çözünürlük olarak [...] seç 
+        3. Hatalı çıktıyı gör
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: İlgili Çıktılar / Loglar
+      description: Varsa hata mesajlarını, çıktı örneklerini veya ekran görüntülerini paylaşın.

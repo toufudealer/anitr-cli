@@ -1,12 +1,14 @@
 package utils
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 type Logger struct {
@@ -70,4 +72,37 @@ func (l *Logger) LogError(err error) {
 
 func (l *Logger) Close() {
 	l.File.Close()
+}
+
+func FailIfErr(err error, logger *Logger) {
+	if err != nil {
+		logger.LogError(err)
+		log.Fatalf("\033[31mKritik hata: %v\033[0m", err)
+	}
+}
+
+func CheckErr(err error, logger *Logger) bool {
+	if err != nil {
+		logger.LogError(err)
+		fmt.Printf("\n\033[31mHata oluştu: %v\033[0m\nLog detayları: %s\nDevam etmek için bir tuşa basın...\n", err, logger.File.Name())
+		fmt.Scanln()
+		return false
+	}
+	return true
+}
+
+func IsValidImage(url string) bool {
+	client := &http.Client{}
+	req, err := http.NewRequest("HEAD", url, nil)
+	if err != nil {
+		return false
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+
+	contentType := resp.Header.Get("Content-Type")
+	return resp.StatusCode == 200 && strings.HasPrefix(contentType, "image/")
 }

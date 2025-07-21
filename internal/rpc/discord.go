@@ -2,34 +2,33 @@ package rpc
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/hugolgst/rich-go/client"
 	"github.com/xeyossr/anitr-cli/internal"
 )
 
-var loggedIn bool
+func ClientLogin() (bool, error) {
+	err := client.Login("1383421771159572600")
+	if err != nil {
+		return false, fmt.Errorf("failed to log in to Discord RPC: %v", err)
+	}
 
-func DiscordRPC(params internal.RPCParams) error {
+	return true, nil
+}
+
+func DiscordRPC(params internal.RPCParams, loggedIn bool) (bool, error) {
 	if !loggedIn {
-		err := client.Login("1383421771159572600")
-		if err != nil {
-			return fmt.Errorf("failed to log in to Discord RPC: %v", err)
-		}
+		ClientLogin()
 		loggedIn = true
 	}
 
-	now := time.Now()
 	err := client.SetActivity(client.Activity{
 		State:      params.State,
-		Details:    fmt.Sprintf("Watching %s", params.Details),
+		Details:    params.Details,
 		LargeImage: params.LargeImage,
 		LargeText:  params.LargeText,
-		//SmallImage: params.SmallImage,
-		//SmallText:  params.SmallText,
-		Timestamps: &client.Timestamps{
-			Start: &now,
-		},
+		SmallImage: params.SmallImage,
+		SmallText:  params.SmallText,
 		Buttons: []*client.Button{
 			{
 				Label: "GitHub",
@@ -39,10 +38,11 @@ func DiscordRPC(params internal.RPCParams) error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("failed to set activity: %v", err)
+		loggedIn = false
+		return loggedIn, fmt.Errorf("failed to set activity: %v", err)
 	}
 
-	return nil
+	return loggedIn, nil
 }
 
 func RPCDetails(details, state, largeimg, largetext string) internal.RPCParams {

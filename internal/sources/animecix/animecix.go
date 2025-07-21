@@ -10,7 +10,10 @@ import (
 	"strings"
 
 	"github.com/xeyossr/anitr-cli/internal"
+	"github.com/xeyossr/anitr-cli/internal/models"
 )
+
+type AnimeCix struct{}
 
 var configAnimecix = internal.Config{
 	BaseUrl:        "https://animecix.tv/",
@@ -26,6 +29,171 @@ type VideoURL struct {
 
 type VideoResponse struct {
 	URLs []VideoURL `json:"urls"`
+}
+
+func (a AnimeCix) Source() string {
+	return "animecix"
+}
+
+func (a AnimeCix) GetSearchData(query string) ([]models.Anime, error) {
+	data, err := FetchAnimeSearchData(query)
+	if err != nil {
+		return nil, err
+	}
+
+	var returnData []models.Anime
+
+	for _, item := range data {
+		id, ok := item["id"].(float64)
+		if !ok {
+			return nil, fmt.Errorf("id is not a float")
+		}
+		intId := int(id)
+		title, ok := item["name"].(string)
+		if !ok {
+			return nil, fmt.Errorf("title is not a string")
+		}
+
+		animeType, ok := item["type"].(string)
+		if !ok {
+			animeType = ""
+		}
+
+		titleType, ok := item["title_type"].(string)
+		if !ok {
+			titleType = ""
+		}
+
+		poster, ok := item["poster"].(string)
+		if !ok {
+			poster = ""
+		}
+
+		returnData = append(returnData, models.Anime{
+			ID:        &intId,
+			Title:     title,
+			Type:      &animeType,
+			TitleType: &titleType,
+			ImageURL:  poster,
+		})
+	}
+
+	return returnData, nil
+}
+
+func (a AnimeCix) GetSeasonsData(params models.SeasonParams) ([]models.Season, error) {
+	data, err := FetchAnimeSeasonsData(*params.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	return []models.Season{
+		{
+			Seasons: &data,
+		},
+	}, nil
+
+}
+
+func (a AnimeCix) GetEpisodesData(params models.EpisodeParams) ([]models.Episode, error) {
+	episodesRaw, err := FetchAnimeEpisodesData(*params.SeasonID)
+	if err != nil {
+		return nil, err
+	}
+
+	var episodes []models.Episode
+	for i, item := range episodesRaw {
+		title, _ := item["name"].(string)
+		url, _ := item["url"].(string)
+		episode := models.Episode{
+			ID:     url,
+			Title:  title,
+			Number: i + 1,
+			Extra:  map[string]interface{}{"season_num": item["season_num"]},
+		}
+		episodes = append(episodes, episode)
+	}
+
+	return episodes, nil
+}
+
+func (a AnimeCix) GetWatchData(req models.WatchParams) ([]models.Watch, error) {
+	if req.IsMovie == nil || req.Url == nil || req.Id == nil || req.Extra == nil {
+		return nil, fmt.Errorf("panic")
+	}
+
+	var (
+		isMovie      bool                   = *req.IsMovie
+		url          string                 = *req.Url
+		id           int                    = *req.Id
+		Extra        map[string]interface{} = *req.Extra
+		seasonIndex  int                    = Extra["seasonIndex"].(int)
+		episodeIndex int                    = Extra["episodeIndex"].(int)
+	)
+
+	if isMovie {
+		data, err := AnimeMovieWatchApiUrl(id)
+		if err != nil {
+			return nil, err
+		}
+
+		streams, ok := data["video_streams"].([]interface{})
+		if !ok {
+			return nil, fmt.Errorf("invalid or missing video_streams")
+		}
+
+		var labels []string
+		var urls []string
+		for _, s := range streams {
+			item, ok := s.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			label, _ := item["label"].(string)
+			url, _ := item["url"].(string)
+
+			labels = append(labels, label)
+			urls = append(urls, url)
+		}
+
+		var captionUrl *string
+		if c, ok := data["caption_url"].(string); ok {
+			captionUrl = &c
+		}
+
+		watch := models.Watch{
+			Labels:    labels,
+			Urls:      urls,
+			TRCaption: captionUrl,
+		}
+
+		return []models.Watch{watch}, nil
+	}
+
+	videoStreams, err := AnimeWatchApiUrl(url)
+	if err != nil {
+		return nil, err
+	}
+
+	captionUrl, err := FetchTRCaption(seasonIndex, episodeIndex, id)
+	if err != nil {
+		captionUrl = ""
+	}
+
+	var labels []string
+	var urls []string
+	for _, entry := range videoStreams {
+		labels = append(labels, entry["label"])
+		urls = append(urls, entry["url"])
+	}
+
+	watch := models.Watch{
+		Labels:    labels,
+		Urls:      urls,
+		TRCaption: &captionUrl,
+	}
+
+	return []models.Watch{watch}, nil
 }
 
 func FetchAnimeSearchData(query string) ([]map[string]interface{}, error) {
@@ -60,12 +228,11 @@ func FetchAnimeSearchData(query string) ([]map[string]interface{}, error) {
 		}
 
 		entry := map[string]interface{}{
-			"name":           itemMap["name"],
-			"id":             itemMap["id"],
-			"type":           itemMap["type"],
-			"title_type":     itemMap["title_type"],
-			"original_title": itemMap["original_title"],
-			"poster":         itemMap["poster"],
+			"name":       itemMap["name"],
+			"id":         itemMap["id"],
+			"type":       itemMap["type"],
+			"title_type": itemMap["title_type"],
+			"poster":     itemMap["poster"],
 		}
 
 		parsed = append(parsed, entry)

@@ -1,0 +1,30 @@
+name: 🌟 Özellik Talebi (Feature Request)
+description: anitr-cli için bir fikir, özellik veya iyileştirme önerin
+title: "[Feature] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Bu özellik isteği bir probleme mi dayanıyor? Nedir ve neden sorun oluşturuyor?
+      placeholder: "Genellikle [...] yapmakta zorlanıyorum."
+  - type: textarea
+    id: solution
+    attributes:
+      label: Önerdiğiniz Çözüm
+      description:  Ne olmasını istiyorsunuz ve bu neden faydalı olur?
+      placeholder: "anitr-cli'nin [...] desteklemesini istiyorum."
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Düşünülen Alternatifler
+      description:  Başka çözümleri veya geçici yolları düşündünüz mü?
+      placeholder: "[...] hakkında da düşündüm."
+  - type: textarea
+    id: context
+    attributes:
+      label: Ek Bağlam
+      description:  İlgili diğer bilgiler veya varsa taslak/mockup ekleyin.
