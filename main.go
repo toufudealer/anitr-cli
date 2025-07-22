@@ -2,9 +2,9 @@ package main
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"log"
+	"os"
 	"regexp"
 	"slices"
 	"sort"
@@ -12,7 +12,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/spf13/cobra"
 	"github.com/xeyossr/anitr-cli/internal"
+	"github.com/xeyossr/anitr-cli/internal/flags"
 	"github.com/xeyossr/anitr-cli/internal/models"
 	"github.com/xeyossr/anitr-cli/internal/player"
 	"github.com/xeyossr/anitr-cli/internal/rpc"
@@ -196,375 +198,385 @@ func main() {
 	log.SetFlags(0)
 	uiMode := "tui"
 
-	disableRpc := flag.Bool("disable-rpc", false, "Discord Rich Presence özelliğini devre dışı bırakır.")
-	checkUpdate := flag.Bool("update", false, "anitr-cli aracını en son sürüme günceller.")
-	printVersion := flag.Bool("version", false, "versiyon")
-	rofiMode := flag.Bool("rofi", false, "Rofi arayüzü ile başlatır.")
-	rofiFlags := flag.String("rofi-flags", "", "Rofi için flag'ler")
-	flag.Parse()
+	rootCmd, f := flags.NewFlagsCmd()
 
-	if *printVersion {
-		update.Version()
-		return
-	}
+	rootCmd.Run = func(cmd *cobra.Command, args []string) {
+		disableRpc := f.DisableRPC
+		printVersion := f.PrintVersion
+		checkUpdate := f.CheckUpdate
+		rofiMode := f.RofiMode
+		rofiFlags := f.RofiFlags
 
-	if *checkUpdate {
-		err := update.RunUpdate()
-		utils.FailIfErr(err, logger)
-		return
-	}
-
-	if *rofiMode {
-		uiMode = "rofi"
-	}
-
-	update.CheckUpdates()
-
-	ui.ClearScreen()
-	sourceList := []string{"AnimeciX", "OpenAnime"}
-	selectedSource, err := ui.SelectionList(internal.UiParams{Mode: uiMode, RofiFlags: rofiFlags, Label: "Kaynak seç ", List: &sourceList})
-	utils.FailIfErr(err, logger)
-
-	query, err := ui.InputFromUser(internal.UiParams{Mode: uiMode, RofiFlags: rofiFlags, Label: "Anime ara "})
-	utils.FailIfErr(err, logger)
-
-	var source models.AnimeSource
-
-	switch strings.ToLower(selectedSource) {
-	case "animecix":
-		source = animecix.AnimeCix{}
-	case "openanime":
-		source = openanime.OpenAnime{}
-	default:
-		source = animecix.AnimeCix{}
-	}
-
-	searchData, err := source.GetSearchData(query)
-	utils.FailIfErr(err, logger)
-	if searchData == nil {
-		log.Fatal("\033[31m[!] Arama sonucu bulunamadı!\033[0m")
-	}
-
-	animeNames := []string{}
-	animeTypes := []string{}
-	var id string
-
-	for _, item := range searchData {
-		if item.ID != nil {
-			id = strconv.Itoa(*item.ID)
-		} else if item.Slug != nil {
-			id = *item.Slug
+		if printVersion {
+			update.Version()
+			return
 		}
 
-		animeNames = append(animeNames, fmt.Sprintf("%s (ID: %s)", item.Title, id))
-
-		if item.TitleType != nil {
-			ttype := item.TitleType
-			if strings.ToLower(*ttype) == "movie" {
-				animeTypes = append(animeTypes, "movie")
-			} else {
-				animeTypes = append(animeTypes, "tv")
-			}
+		if checkUpdate {
+			err := update.RunUpdate()
+			utils.FailIfErr(err, logger)
+			return
 		}
-	}
 
-	ui.ClearScreen()
-	selectedAnimeName, err := ui.SelectionList(internal.UiParams{Mode: uiMode, RofiFlags: rofiFlags, List: &animeNames, Label: "Anime seç "})
-	utils.FailIfErr(err, logger)
-	if selectedAnimeName == "" {
-		return
-	}
-
-	selectedIndex := slices.Index(animeNames, selectedAnimeName)
-	selectedAnime := searchData[selectedIndex]
-
-	var isMovie bool
-
-	if len(animeTypes) > 0 {
-		selectedAnimeType := animeTypes[selectedIndex]
-		isMovie = selectedAnimeType == "movie"
-	}
-
-	posterUrl := selectedAnime.ImageURL
-	if !utils.IsValidImage(posterUrl) {
-		posterUrl = "anitrcli"
-	}
-
-	re := regexp.MustCompile(`^(.+?) \(ID: ([a-zA-Z0-9\-]+)\)$`)
-	match := re.FindStringSubmatch(selectedAnimeName)
-	if len(match) < 3 {
-		log.Fatal("ID eşleşmedi")
-	}
-	selectedAnimeName = match[1]
-	var (
-		selectedAnimeID   int
-		selectedAnimeSlug string
-	)
-
-	if source.Source() == "animecix" {
-		selectedAnimeID, _ = strconv.Atoi(match[2])
-	} else if source.Source() == "openanime" {
-		selectedAnimeSlug = match[2]
-	}
-
-	var (
-		episodes              []models.Episode
-		episodeNames          []string
-		selectedEpisodeIndex  int
-		selectedResolution    string
-		selectedResolutionIdx int
-		selectedSeasonIndex   int
-	)
-
-	if source.Source() == "openanime" {
-		seasonData, err := source.GetSeasonsData(models.SeasonParams{Slug: &selectedAnimeSlug})
-		utils.FailIfErr(err, logger)
-
-		isMovie = *seasonData[0].IsMovie
-	}
-
-	if !isMovie {
-		episodes, err = source.GetEpisodesData(models.EpisodeParams{SeasonID: &selectedAnimeID, Slug: &selectedAnimeSlug})
-		utils.FailIfErr(err, logger)
-		for _, e := range episodes {
-			episodeNames = append(episodeNames, e.Title)
+		if rofiMode {
+			uiMode = "rofi"
 		}
-		selectedSeasonIndex = int(episodes[selectedEpisodeIndex].Extra["season_num"].(float64)) - 1
-	} else {
-		episodeNames = []string{selectedAnimeName}
-		episodes = []models.Episode{
-			{
-				Title: selectedAnimeName,
-				Extra: map[string]interface{}{
-					"season_num": float64(1),
-				},
-			},
-		}
-		selectedSeasonIndex = 0
-	}
 
-	loggedIn, err := rpc.ClientLogin()
-	if err != nil || !loggedIn {
-		logger.LogError(err)
-	}
+		update.CheckUpdates()
 
-	for {
 		ui.ClearScreen()
-		watchMenu := []string{"İzle", "Çözünürlük seç", "Çık"}
-		if !isMovie {
-			watchMenu = append([]string{"Sonraki bölüm", "Önceki bölüm", "Bölüm seç"}, watchMenu...)
-		}
-
-		option, err := ui.SelectionList(internal.UiParams{
-			Mode:      uiMode,
-			RofiFlags: rofiFlags,
-			List:      &watchMenu,
-			Label:     selectedAnimeName,
-		})
+		sourceList := []string{"AnimeciX", "OpenAnime"}
+		selectedSource, err := ui.SelectionList(internal.UiParams{Mode: uiMode, RofiFlags: &rofiFlags, Label: "Kaynak seç ", List: &sourceList})
 		utils.FailIfErr(err, logger)
 
-		switch option {
-		case "İzle", "Sonraki bölüm", "Önceki bölüm":
-			ui.ClearScreen()
+		var source models.AnimeSource
 
-			if option == "Sonraki bölüm" {
-				if selectedEpisodeIndex+1 >= len(episodes) {
-					fmt.Println("Zaten son bölümdesiniz.")
-					break
-				}
-				selectedEpisodeIndex++
-			} else if option == "Önceki bölüm" {
-				if selectedEpisodeIndex <= 0 {
-					fmt.Println("Zaten ilk bölümdesiniz.")
-					break
-				}
-				selectedEpisodeIndex--
+		switch strings.ToLower(selectedSource) {
+		case "animecix":
+			source = animecix.AnimeCix{}
+		case "openanime":
+			source = openanime.OpenAnime{}
+		}
+
+		if strings.ToLower(selectedSource) == "" {
+			log.Fatal("\033[31m[!] Kaynak seçilmedi\033[0m")
+		}
+
+		query, err := ui.InputFromUser(internal.UiParams{Mode: uiMode, RofiFlags: &rofiFlags, Label: "Anime ara "})
+		utils.FailIfErr(err, logger)
+
+		searchData, err := source.GetSearchData(query)
+		utils.FailIfErr(err, logger)
+		if searchData == nil {
+			log.Fatal("\033[31m[!] Arama sonucu bulunamadı!\033[0m")
+		}
+
+		animeNames := []string{}
+		animeTypes := []string{}
+		var id string
+
+		for _, item := range searchData {
+			if item.ID != nil {
+				id = strconv.Itoa(*item.ID)
+			} else if item.Slug != nil {
+				id = *item.Slug
 			}
 
-			// Sezonu her seferinde güncelle
+			animeNames = append(animeNames, fmt.Sprintf("%s (ID: %s)", item.Title, id))
+
+			if item.TitleType != nil {
+				ttype := item.TitleType
+				if strings.ToLower(*ttype) == "movie" {
+					animeTypes = append(animeTypes, "movie")
+				} else {
+					animeTypes = append(animeTypes, "tv")
+				}
+			}
+		}
+
+		ui.ClearScreen()
+		selectedAnimeName, err := ui.SelectionList(internal.UiParams{Mode: uiMode, RofiFlags: &rofiFlags, List: &animeNames, Label: "Anime seç "})
+		utils.FailIfErr(err, logger)
+		if selectedAnimeName == "" {
+			return
+		}
+
+		selectedIndex := slices.Index(animeNames, selectedAnimeName)
+		selectedAnime := searchData[selectedIndex]
+
+		var isMovie bool
+
+		if len(animeTypes) > 0 {
+			selectedAnimeType := animeTypes[selectedIndex]
+			isMovie = selectedAnimeType == "movie"
+		}
+
+		posterUrl := selectedAnime.ImageURL
+		if !utils.IsValidImage(posterUrl) {
+			posterUrl = "anitrcli"
+		}
+
+		re := regexp.MustCompile(`^(.+?) \(ID: ([a-zA-Z0-9\-]+)\)$`)
+		match := re.FindStringSubmatch(selectedAnimeName)
+		if len(match) < 3 {
+			log.Fatal("ID eşleşmedi")
+		}
+		selectedAnimeName = match[1]
+		var (
+			selectedAnimeID   int
+			selectedAnimeSlug string
+		)
+
+		if source.Source() == "animecix" {
+			selectedAnimeID, _ = strconv.Atoi(match[2])
+		} else if source.Source() == "openanime" {
+			selectedAnimeSlug = match[2]
+		}
+
+		var (
+			episodes              []models.Episode
+			episodeNames          []string
+			selectedEpisodeIndex  int
+			selectedResolution    string
+			selectedResolutionIdx int
+			selectedSeasonIndex   int
+		)
+
+		if source.Source() == "openanime" {
+			seasonData, err := source.GetSeasonsData(models.SeasonParams{Slug: &selectedAnimeSlug})
+			utils.FailIfErr(err, logger)
+
+			isMovie = *seasonData[0].IsMovie
+		}
+
+		if !isMovie {
+			episodes, err = source.GetEpisodesData(models.EpisodeParams{SeasonID: &selectedAnimeID, Slug: &selectedAnimeSlug})
+			utils.FailIfErr(err, logger)
+			for _, e := range episodes {
+				episodeNames = append(episodeNames, e.Title)
+			}
 			selectedSeasonIndex = int(episodes[selectedEpisodeIndex].Extra["season_num"].(float64)) - 1
+		} else {
+			episodeNames = []string{selectedAnimeName}
+			episodes = []models.Episode{
+				{
+					Title: selectedAnimeName,
+					Extra: map[string]interface{}{
+						"season_num": float64(1),
+					},
+				},
+			}
+			selectedSeasonIndex = 0
+		}
 
-			data, err := updateWatchApi(
-				strings.ToLower(selectedSource),
-				episodes,
-				selectedEpisodeIndex,
-				selectedAnimeID,
-				selectedSeasonIndex,
-				selectedEpisodeIndex,
-				isMovie,
-				&selectedAnimeSlug,
-			)
-			if !utils.CheckErr(err, logger) {
-				continue
+		loggedIn, err := rpc.ClientLogin()
+		if err != nil || !loggedIn {
+			logger.LogError(err)
+		}
+
+		for {
+			ui.ClearScreen()
+			watchMenu := []string{"İzle", "Çözünürlük seç", "Çık"}
+			if !isMovie {
+				watchMenu = append([]string{"Sonraki bölüm", "Önceki bölüm", "Bölüm seç"}, watchMenu...)
 			}
 
-			labels := data["labels"].([]string)
-			urls := data["urls"].([]string)
-			subtitle := data["caption_url"].(string)
-
-			if selectedResolution == "" {
-				selectedResolutionIdx = 0
-				if len(labels) > 0 {
-					selectedResolution = labels[selectedResolutionIdx]
-				}
-			}
-
-			if selectedResolutionIdx >= len(urls) {
-				selectedResolutionIdx = len(urls) - 1
-			}
-
-			cmd, socketPath, err := player.Play(player.MPVParams{
-				Url:         urls[selectedResolutionIdx],
-				SubtitleUrl: &subtitle,
-				Title:       fmt.Sprintf("%s - %s", selectedAnimeName, episodeNames[selectedEpisodeIndex]),
+			option, err := ui.SelectionList(internal.UiParams{
+				Mode:      uiMode,
+				RofiFlags: &rofiFlags,
+				List:      &watchMenu,
+				Label:     selectedAnimeName,
 			})
-			if !utils.CheckErr(err, logger) {
-				return
-			}
+			utils.FailIfErr(err, logger)
 
-			maxAttempts := 10
-			mpvRunning := false
-			for i := 0; i < maxAttempts; i++ {
-				time.Sleep(300 * time.Millisecond)
-				if player.IsMPVRunning(socketPath) {
-					mpvRunning = true
-					break
+			switch option {
+			case "İzle", "Sonraki bölüm", "Önceki bölüm":
+				ui.ClearScreen()
+
+				if option == "Sonraki bölüm" {
+					if selectedEpisodeIndex+1 >= len(episodes) {
+						fmt.Println("Zaten son bölümdesiniz.")
+						break
+					}
+					selectedEpisodeIndex++
+				} else if option == "Önceki bölüm" {
+					if selectedEpisodeIndex <= 0 {
+						fmt.Println("Zaten ilk bölümdesiniz.")
+						break
+					}
+					selectedEpisodeIndex--
 				}
-			}
-			if !mpvRunning {
-				logger.LogError(errors.New("MPV başlatılamadı veya zamanında yanıt vermedi"))
-				return
-			}
 
-			// 🎬 Rich Presence Güncelleme
-			if !*disableRpc {
-				go func() {
-					ticker := time.NewTicker(5 * time.Second) // Update interval: 5 saniye
-					defer ticker.Stop()
+				// Sezonu her seferinde güncelle
+				selectedSeasonIndex = int(episodes[selectedEpisodeIndex].Extra["season_num"].(float64)) - 1
 
-					for range ticker.C {
-						if !player.IsMPVRunning(socketPath) {
-							break
-						}
+				data, err := updateWatchApi(
+					strings.ToLower(selectedSource),
+					episodes,
+					selectedEpisodeIndex,
+					selectedAnimeID,
+					selectedSeasonIndex,
+					selectedEpisodeIndex,
+					isMovie,
+					&selectedAnimeSlug,
+				)
+				if !utils.CheckErr(err, logger) {
+					continue
+				}
 
-						isPaused, err := player.GetMPVPausedStatus(socketPath)
-						if err != nil {
-							logger.LogError(fmt.Errorf("pause durumu alınamadı: %w", err))
-							continue
-						}
+				labels := data["labels"].([]string)
+				urls := data["urls"].([]string)
+				subtitle := data["caption_url"].(string)
 
-						durationVal, err := player.MPVSendCommand(socketPath, []interface{}{"get_property", "duration"})
-						if err != nil {
-							logger.LogError(fmt.Errorf("süre alınamadı: %w", err))
-							continue
-						}
+				if selectedResolution == "" {
+					selectedResolutionIdx = 0
+					if len(labels) > 0 {
+						selectedResolution = labels[selectedResolutionIdx]
+					}
+				}
 
-						timePosVal, err := player.MPVSendCommand(socketPath, []interface{}{"get_property", "time-pos"})
-						if err != nil {
-							logger.LogError(fmt.Errorf("konum alınamadı: %w", err))
-							continue
-						}
+				if selectedResolutionIdx >= len(urls) {
+					selectedResolutionIdx = len(urls) - 1
+				}
 
-						duration, ok1 := durationVal.(float64)
-						timePos, ok2 := timePosVal.(float64)
-						if !ok1 || !ok2 {
-							logger.LogError(errors.New("süre veya zaman konumu parse edilemedi"))
-							continue
-						}
+				cmd, socketPath, err := player.Play(player.MPVParams{
+					Url:         urls[selectedResolutionIdx],
+					SubtitleUrl: &subtitle,
+					Title:       fmt.Sprintf("%s - %s", selectedAnimeName, episodeNames[selectedEpisodeIndex]),
+				})
+				if !utils.CheckErr(err, logger) {
+					return
+				}
 
-						formatTime := func(seconds float64) string {
-							total := int(seconds + 0.5)
-							return fmt.Sprintf("%02d:%02d", total/60, total%60)
-						}
+				maxAttempts := 10
+				mpvRunning := false
+				for i := 0; i < maxAttempts; i++ {
+					time.Sleep(300 * time.Millisecond)
+					if player.IsMPVRunning(socketPath) {
+						mpvRunning = true
+						break
+					}
+				}
+				if !mpvRunning {
+					logger.LogError(errors.New("MPV başlatılamadı veya zamanında yanıt vermedi"))
+					return
+				}
 
-						state := fmt.Sprintf("%s (%s / %s)",
-							episodeNames[selectedEpisodeIndex],
-							formatTime(timePos),
-							formatTime(duration),
-						)
+				// 🎬 Rich Presence Güncelleme
+				if !disableRpc {
+					go func() {
+						ticker := time.NewTicker(5 * time.Second) // Update interval: 5 saniye
+						defer ticker.Stop()
 
-						if isPaused {
-							state = fmt.Sprintf("%s (%s / %s) (Paused)",
+						for range ticker.C {
+							if !player.IsMPVRunning(socketPath) {
+								break
+							}
+
+							isPaused, err := player.GetMPVPausedStatus(socketPath)
+							if err != nil {
+								logger.LogError(fmt.Errorf("pause durumu alınamadı: %w", err))
+								continue
+							}
+
+							durationVal, err := player.MPVSendCommand(socketPath, []interface{}{"get_property", "duration"})
+							if err != nil {
+								logger.LogError(fmt.Errorf("süre alınamadı: %w", err))
+								continue
+							}
+
+							timePosVal, err := player.MPVSendCommand(socketPath, []interface{}{"get_property", "time-pos"})
+							if err != nil {
+								logger.LogError(fmt.Errorf("konum alınamadı: %w", err))
+								continue
+							}
+
+							duration, ok1 := durationVal.(float64)
+							timePos, ok2 := timePosVal.(float64)
+							if !ok1 || !ok2 {
+								logger.LogError(errors.New("süre veya zaman konumu parse edilemedi"))
+								continue
+							}
+
+							formatTime := func(seconds float64) string {
+								total := int(seconds + 0.5)
+								return fmt.Sprintf("%02d:%02d", total/60, total%60)
+							}
+
+							state := fmt.Sprintf("%s (%s / %s)",
 								episodeNames[selectedEpisodeIndex],
 								formatTime(timePos),
 								formatTime(duration),
 							)
+
+							if isPaused {
+								state = fmt.Sprintf("%s (%s / %s) (Paused)",
+									episodeNames[selectedEpisodeIndex],
+									formatTime(timePos),
+									formatTime(duration),
+								)
+							}
+
+							// Discord RPC güncelleme
+							loggedIn, err = rpc.DiscordRPC(internal.RPCParams{
+								Details:    selectedAnimeName,
+								State:      state,
+								SmallImage: strings.ToLower(selectedSource),
+								SmallText:  selectedSource,
+								LargeImage: posterUrl,
+								LargeText:  selectedAnimeName,
+							}, loggedIn)
+							if err != nil {
+								logger.LogError(fmt.Errorf("DiscordRPC hatası: %w", err))
+								continue
+							}
 						}
-
-						// Discord RPC güncelleme
-						loggedIn, err = rpc.DiscordRPC(internal.RPCParams{
-							Details:    selectedAnimeName,
-							State:      state,
-							SmallImage: strings.ToLower(selectedSource),
-							SmallText:  selectedSource,
-							LargeImage: posterUrl,
-							LargeText:  selectedAnimeName,
-						}, loggedIn)
-						if err != nil {
-							logger.LogError(fmt.Errorf("DiscordRPC hatası: %w", err))
-							continue
-						}
-					}
-				}()
-			}
-
-			err = cmd.Wait()
-			if err != nil {
-				fmt.Println("MPV çalışırken hata:", err)
-			}
-
-		case "Çözünürlük seç":
-			data, err := updateWatchApi(
-				strings.ToLower(selectedSource),
-				episodes,
-				selectedEpisodeIndex,
-				selectedAnimeID,
-				selectedSeasonIndex,
-				selectedEpisodeIndex,
-				isMovie,
-				&selectedAnimeSlug,
-			)
-			if !utils.CheckErr(err, logger) {
-				continue
-			}
-
-			labels := data["labels"].([]string)
-			selected, err := ui.SelectionList(internal.UiParams{
-				Mode:      uiMode,
-				RofiFlags: rofiFlags,
-				List:      &labels,
-				Label:     "Çözünürlük seç ",
-			})
-			if !utils.CheckErr(err, logger) {
-				continue
-			}
-
-			selectedResolution = selected
-			selectedResolutionIdx = slices.Index(labels, selected)
-
-		case "Bölüm seç":
-			selected, err := ui.SelectionList(internal.UiParams{
-				Mode:      uiMode,
-				RofiFlags: rofiFlags,
-				List:      &episodeNames,
-				Label:     "Bölüm seç ",
-			})
-			if !utils.CheckErr(err, logger) {
-				continue
-			}
-
-			if selected != "" {
-				selectedEpisodeIndex = slices.Index(episodeNames, selected)
-
-				if !isMovie && selectedEpisodeIndex >= 0 && selectedEpisodeIndex < len(episodes) {
-					selectedSeasonIndex = int(episodes[selectedEpisodeIndex].Extra["season_num"].(float64)) - 1
+					}()
 				}
-			}
 
-		case "Çık":
-			return
-		default:
-			return
+				err = cmd.Wait()
+				if err != nil {
+					fmt.Println("MPV çalışırken hata:", err)
+				}
+
+			case "Çözünürlük seç":
+				data, err := updateWatchApi(
+					strings.ToLower(selectedSource),
+					episodes,
+					selectedEpisodeIndex,
+					selectedAnimeID,
+					selectedSeasonIndex,
+					selectedEpisodeIndex,
+					isMovie,
+					&selectedAnimeSlug,
+				)
+				if !utils.CheckErr(err, logger) {
+					continue
+				}
+
+				labels := data["labels"].([]string)
+				selected, err := ui.SelectionList(internal.UiParams{
+					Mode:      uiMode,
+					RofiFlags: &rofiFlags,
+					List:      &labels,
+					Label:     "Çözünürlük seç ",
+				})
+				if !utils.CheckErr(err, logger) {
+					continue
+				}
+
+				selectedResolution = selected
+				selectedResolutionIdx = slices.Index(labels, selected)
+
+			case "Bölüm seç":
+				selected, err := ui.SelectionList(internal.UiParams{
+					Mode:      uiMode,
+					RofiFlags: &rofiFlags,
+					List:      &episodeNames,
+					Label:     "Bölüm seç ",
+				})
+				if !utils.CheckErr(err, logger) {
+					continue
+				}
+
+				if selected != "" {
+					selectedEpisodeIndex = slices.Index(episodeNames, selected)
+
+					if !isMovie && selectedEpisodeIndex >= 0 && selectedEpisodeIndex < len(episodes) {
+						selectedSeasonIndex = int(episodes[selectedEpisodeIndex].Extra["season_num"].(float64)) - 1
+					}
+				}
+
+			case "Çık":
+				return
+			default:
+				return
+			}
 		}
+	}
+
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }
