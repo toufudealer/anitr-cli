@@ -106,3 +106,11 @@ func IsValidImage(url string) bool {
 	contentType := resp.Header.Get("Content-Type")
 	return resp.StatusCode == 200 && strings.HasPrefix(contentType, "image/")
 }
+
+func NormalizeTurkishToASCII(input string) string {
+	replacer := strings.NewReplacer(
+		"ö", "o", "ü", "u", "ı", "i", "ç", "c", "ş", "s", "ğ", "g",
+		"Ö", "O", "Ü", "U", "İ", "I", "Ç", "C", "Ş", "S", "Ğ", "G",
+	)
+	return replacer.Replace(input)
+}
