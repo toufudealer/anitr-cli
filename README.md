@@ -1,14 +1,19 @@
  # ANITR-CLI
 
-<div>
+<div align="center">
  
-  **anitr-cli:** Hızlı bir şekilde anime araması yapabileceğiniz ve istediğiniz animeyi Türkçe altyazılı izleyebileceğiniz terminal aracıdır 💫 Anime severler için hafif, pratik ve kullanışlı bir çözüm sunar 🚀
+  **Süper Hızlı** bir şekilde anime araması yapabileceğiniz ve istediğiniz animeyi Türkçe altyazılı izleyebileceğiniz terminal aracı 💫
 
-  [![Github_Release](https://img.shields.io/github/v/release/xeyossr/anitr-cli?style=for-the-badge&include_prereleases&label=GitHub%20Release)](https://github.com/xeyossr/anitr-cli/releases) [![Windows_Fork](https://img.shields.io/github/v/release/mstsecurity/anitr-cli-windows?include_prereleases&display_name=release&label=Windows%20Fork&style=for-the-badge)](https://github.com/mstsecurity/anitr-cli-windows) [![AUR](https://img.shields.io/aur/version/anitr-cli?style=for-the-badge)](https://aur.archlinux.org/packages/anitr-cli)
+  [![Github_Release](https://img.shields.io/github/v/release/xeyossr/anitr-cli?style=for-the-badge&include_prereleases&label=GitHub%20Release)](https://github.com/xeyossr/anitr-cli/releases) [![AUR](https://img.shields.io/aur/version/anitr-cli?style=for-the-badge)](https://aur.archlinux.org/packages/anitr-cli) [![Windows_Fork](https://img.shields.io/github/v/release/mstsecurity/anitr-cli-windows?include_prereleases&display_name=release&label=Windows%20Fork&style=for-the-badge)](https://github.com/mstsecurity/anitr-cli-windows) 
 
 ---
 
 </div>
+
+## 🌟 Özellikler
+- **AnimeCix** ve **OpenAnime** desteği: Favori anime sitelerinden animelerinizi izleyin!
+- TUI ve Rofi UI: Terminal veya minimalist GUI arayüzü ile kullanım.
+- Discord RPC: İzlediğiniz anime bilgilerini Discord profilinizde gösterin, arkadaşlarınızla paylaşın.
 
 ## 💻 Kurulum
 
@@ -22,11 +27,12 @@ yay -S anitr-cli
 
 Eğer Arch tabanlı olmayan bir dağıtım kullanıyorsanız, **en son sürümü** indirmek için aşağıdaki komutları kullanabilirsiniz:
 ```bash
-curl -L -o /tmp/anitr-cli https://github.com/xeyossr/anitr-cli/releases/latest/download/anitr-cli
-
-sudo mv /tmp/anitr-cli /usr/bin/anitr-cli
-sudo chmod +x /usr/bin/anitr-cli
+git clone https://github.com/xeyossr/anitr-cli.git
+cd anitr-cli
+make install
 ```
+
+> Not: anitr-cli'yi manuel olarak kurmak için sisteminizde `go`, `git` ve `make` kurulu olmalıdır. Kullanmak için ise `mpv` ve rofi arayüzünü kullanacaksanız isteğe bağlı olarak `rofi` de kurulu olmalıdır.
 
 #### Güncelleme
 
@@ -50,23 +56,24 @@ Bu proje Linux için geliştirilmiştir. **Windows kullanıcıları**, [anitr-cl
 ## 👾 Kullanım
 
 ```bash
-Usage of ./anitr-cli:
-  -disable-rpc
-    	Discord Rich Presence özelliğini devre dışı bırakır.
-  -rofi
-    	Rofi arayüzü ile başlatır.
-  -rofi-flags string
-    	Rofi için flag'ler
-  -update
-    	anitr-cli aracını en son sürüme günceller.
-  -version
-    	versiyon
+💫 Terminalden Türkçe anime izleme aracı
+
+Usage:
+  anitr-cli [flags]
+
+Flags:
+      --disable-rpc         Discord Rich Presence özelliğini devre dışı bırakır.
+  -h, --help                help for anitr-cli
+      --rofi                Rofi arayüzü ile başlatır.
+      --rofi-flags string   Rofi için flag'ler
+      --update              anitr-cli aracını en son sürüme günceller.
+      --version             Versiyon bilgisi.
 ```
 
-## Sorunlar
+## 🚩 Sorunlar ve Katkı
 
-Eğer bir sorunla karşılaştıysanız lütfen bir [**issue**](https://github.com/xeyossr/anitr-cli/issue) açarak karşılaştığınız problemi detaylı bir şekilde açıklayın.
+Herhangi bir hata veya geliştirme öneriniz için lütfen bir [**issue**](https://github.com/xeyossr/anitr-cli/issue) açın.
 
-## Lisans
+## 📄 Lisans
 
-Bu proje GNU General Public License v3.0 (GPL-3) altında lisanslanmıştır. Yazılımı bu lisansın koşulları altında kullanmakta, değiştirmekte ve dağıtmakta özgürsünüz. Daha fazla ayrıntı için lütfen [LICENSE](LICENSE) dosyasına bakın.
+Bu proje [GNU GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html) lisansı ile lisanslanmıştır. Yazılımı bu lisansın koşulları altında kullanmakta, değiştirmekte ve dağıtmakta özgürsünüz. Daha fazla ayrıntı için lütfen [LICENSE](LICENSE) dosyasına bakın.
