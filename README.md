@@ -32,7 +32,36 @@ cd anitr-cli
 make install
 ```
 
-> Not: anitr-cli'yi manuel olarak kurmak için sisteminizde `go`, `git` ve `make` kurulu olmalıdır. Kullanmak için ise `mpv` ve rofi arayüzünü kullanacaksanız isteğe bağlı olarak `rofi` de kurulu olmalıdır.
+> Not: `anitr-cli`'yi kurabilmek için sisteminizde şu paketlerin kurulu olması gerekir:
+> 
+> **Derleme:** `go`, `git`, `make`   
+> **Kullanım (Zorunlu):** `mpv`   
+> **İsteğe bağlı: rofi (Rofi arayüzünü kullanmak istiyorsanız)**   
+> 
+> Bu paketleri aşağıdaki komutlarla sisteminize kurabilirsiniz:
+> 
+> **Debian / Ubuntu tabanlı sistemler:**
+> ```sudo
+> sudo apt update
+> sudo apt install golang git make mpv rofi
+> ```
+> 
+> **Arch / Manjaro:**
+> ```sudo
+> sudo pacman -S go git make mpv rofi
+> ```
+> 
+> **Fedora:**
+> ```bash
+> sudo dnf install golang git make mpv rofi
+> ```
+> 
+> **openSUSE:**
+> ```bash
+> sudo zypper install go git make mpv rofi
+> ```
+> Ardından `git clone`, `make install` adımlarını uygulayarak kurulumu tamamlayabilirsiniz.
+---
 
 #### Güncelleme
 
