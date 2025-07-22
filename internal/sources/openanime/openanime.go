@@ -6,6 +6,7 @@ import (
 
 	"github.com/xeyossr/anitr-cli/internal"
 	"github.com/xeyossr/anitr-cli/internal/models"
+	"github.com/xeyossr/anitr-cli/internal/utils"
 )
 
 type OpenAnime struct{}
@@ -21,8 +22,9 @@ func (o OpenAnime) Source() string {
 }
 
 func (o OpenAnime) GetSearchData(query string) ([]models.Anime, error) {
-	query = strings.ReplaceAll(query, " ", "+")
-	url := fmt.Sprintf("%s/anime/search?q=%s", configOpenAnime.BaseUrl, query)
+	normalizedQuery := utils.NormalizeTurkishToASCII(query)
+	normalizedQuery = strings.ReplaceAll(normalizedQuery, " ", "+")
+	url := fmt.Sprintf("%s/anime/search?q=%s", configOpenAnime.BaseUrl, normalizedQuery)
 	data, err := internal.GetJson(url, configOpenAnime.HttpHeaders)
 	if err != nil {
 		return nil, err
@@ -227,7 +229,7 @@ func (o OpenAnime) GetWatchData(req models.WatchParams) ([]models.Watch, error) 
 		}
 
 		urlRaw, urlOK := fileData["file"].(string)
-		url := fmt.Sprintf("%s/animes/%s/1/%s", configOpenAnime.VideoPlayers[0], slug, urlRaw)
+		url := fmt.Sprintf("%s/animes/%s/%d/%s", configOpenAnime.VideoPlayers[0], slug, seasonNum, urlRaw)
 		resolutionVal, resOK := fileData["resolution"].(float64)
 
 		if !urlOK || !resOK {
