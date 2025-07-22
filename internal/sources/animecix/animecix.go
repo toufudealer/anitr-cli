@@ -11,6 +11,7 @@ import (
 
 	"github.com/xeyossr/anitr-cli/internal"
 	"github.com/xeyossr/anitr-cli/internal/models"
+	"github.com/xeyossr/anitr-cli/internal/utils"
 )
 
 type AnimeCix struct{}
@@ -36,7 +37,9 @@ func (a AnimeCix) Source() string {
 }
 
 func (a AnimeCix) GetSearchData(query string) ([]models.Anime, error) {
-	data, err := FetchAnimeSearchData(query)
+	normalizedQuery := utils.NormalizeTurkishToASCII(query)
+	normalizedQuery = strings.ReplaceAll(normalizedQuery, " ", "-")
+	data, err := FetchAnimeSearchData(normalizedQuery)
 	if err != nil {
 		return nil, err
 	}
