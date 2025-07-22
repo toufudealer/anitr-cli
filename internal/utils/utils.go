@@ -13,6 +13,7 @@ import (
 
 type Logger struct {
 	File *os.File
+	Log  *log.Logger
 }
 
 func GetImage(url string) (string, error) {
@@ -51,36 +52,50 @@ func SendNotification(title, msg, icon string) error {
 }
 
 func NewLogger() (*Logger, error) {
-	tmpFile, err := os.Create(filepath.Join("/tmp", "anitr-cli.log"))
+	logPath := filepath.Join("/tmp", "anitr-cli.log")
+	file, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return nil, err
 	}
 
+	multiWriter := io.MultiWriter(os.Stdout, file)
+
+	logger := log.New(multiWriter, "", log.LstdFlags|log.Lmsgprefix)
+
 	return &Logger{
-		File: tmpFile,
+		File: file,
+		Log:  logger,
 	}, nil
 }
 
+// LogError hata objesini loglar, nil ise atlar
 func (l *Logger) LogError(err error) {
 	if err == nil {
 		return
 	}
-
-	log.SetOutput(l.File)
-	log.Printf("[ERROR] %v\n", err)
+	l.Log.Printf("[ERROR] %v\n", err)
 }
 
-func (l *Logger) Close() {
-	l.File.Close()
+// LogMsg formatlı string loglamak için
+func (l *Logger) LogMsg(format string, a ...interface{}) {
+	l.Log.Printf(format, a...)
 }
 
+func (l *Logger) Close() error {
+	return l.File.Close()
+}
+
+// FailIfErr kritik hata durumunda loglar ve kapanır
 func FailIfErr(err error, logger *Logger) {
 	if err != nil {
 		logger.LogError(err)
-		log.Fatalf("\033[31mKritik hata: %v\033[0m", err)
+		logger.LogMsg("\033[31mKritik hata: %v\033[0m\n", err)
+		logger.Close()
+		os.Exit(1)
 	}
 }
 
+// CheckErr hata varsa loglar, ekranda gösterir ve devam etmeyi kullanıcıya bırakır
 func CheckErr(err error, logger *Logger) bool {
 	if err != nil {
 		logger.LogError(err)
