@@ -12,8 +12,8 @@
 
 ## 🌟 Özellikler
 - **AnimeCix** ve **OpenAnime** desteği: Favori anime sitelerinden animelerinizi izleyin!
-- TUI ve Rofi UI: Terminal veya minimalist GUI arayüzü ile kullanım.
-- Discord RPC: İzlediğiniz anime bilgilerini Discord profilinizde gösterin, arkadaşlarınızla paylaşın.
+- **TUI ve Rofi UI**: Terminal veya minimalist GUI arayüzü ile kullanım.
+- **Discord RPC**: İzlediğiniz anime bilgilerini Discord profilinizde gösterin, arkadaşlarınızla paylaşın.
 
 ## 💻 Kurulum
 
