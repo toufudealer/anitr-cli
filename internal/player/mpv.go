@@ -23,13 +23,12 @@ func isMPVInstalled() error {
 	return err
 }
 
-func Play(params MPVParams) (string, error) {
+func Play(params MPVParams) (*exec.Cmd, string, error) {
 	mpvSocket := "anitr-cli-410.sock"
 	mpvSocketPath := filepath.Join("/tmp", mpvSocket)
 
-	err := isMPVInstalled()
-	if err != nil {
-		return "", errors.New("mpv sisteminizde yüklü değil")
+	if err := isMPVInstalled(); err != nil {
+		return nil, "", errors.New("mpv sisteminizde yüklü değil")
 	}
 
 	args := []string{
@@ -42,42 +41,30 @@ func Play(params MPVParams) (string, error) {
 		"--idle=yes", "--really-quiet", "--no-terminal",
 		fmt.Sprintf("--input-ipc-server=%s", mpvSocketPath),
 	}
-	subtitleUrl := *params.SubtitleUrl
 
-	if params.SubtitleUrl != nil && subtitleUrl != "" {
-		subtitle := []string{"--sub-file", subtitleUrl}
-		args = append(args, subtitle...)
+	if params.SubtitleUrl != nil && *params.SubtitleUrl != "" {
+		args = append(args, "--sub-file", *params.SubtitleUrl)
 	}
 
 	args = append(args, params.Url)
 
 	cmd := exec.Command("mpv", args...)
-	err = cmd.Start()
-	if err != nil {
-		return "", err
+	if err := cmd.Start(); err != nil {
+		return cmd, "", err
 	}
 
-	socketReady := false
 	maxRetries := 10
 	retryDelay := 300 * time.Millisecond
-
 	for i := 0; i < maxRetries; i++ {
 		time.Sleep(retryDelay)
-
 		conn, err := ipc.ConnectToPipe(mpvSocketPath)
 		if err == nil {
 			conn.Close()
-			socketReady = true
-			break
+			return cmd, mpvSocketPath, nil
 		}
-
 	}
 
-	if !socketReady {
-
-	}
-
-	return mpvSocketPath, nil
+	return cmd, "", errors.New("MPV socket hazır değil, başlatılamadı")
 }
 
 func MPVSendCommand(ipcSocketPath string, command []interface{}) (interface{}, error) {

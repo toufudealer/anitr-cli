@@ -413,7 +413,7 @@ func main() {
 				selectedResolutionIdx = len(urls) - 1
 			}
 
-			socketPath, err := player.Play(player.MPVParams{
+			cmd, socketPath, err := player.Play(player.MPVParams{
 				Url:         urls[selectedResolutionIdx],
 				SubtitleUrl: &subtitle,
 				Title:       fmt.Sprintf("%s - %s", selectedAnimeName, episodeNames[selectedEpisodeIndex]),
@@ -506,6 +506,11 @@ func main() {
 						}
 					}
 				}()
+			}
+
+			err = cmd.Wait()
+			if err != nil {
+				fmt.Println("MPV çalışırken hata:", err)
 			}
 
 		case "Çözünürlük seç":
