@@ -1,4 +1,4 @@
- # ANITR-CLI
+ # anitr-cli
 
 <div align="center">
  
@@ -44,8 +44,7 @@ yay -Sy anitr-cli
 ```
 
 - **Manuel** kurulum yaptıysanız:
-> Eğer manuel kurulum yaptıysanız, güncellemeleri manuel olarak yapmanız gerekmektedir. Alternatif olarak, [anitrcli-update](anitrcli-update) betiğini indirip `/usr/bin` dizinine yerleştirerek otomatik güncelleme yapabilirsiniz.
-
+> Eğer manuel kurulum yaptıysanız, güncellemeleri manuel olarak yapmanız gerekmektedir.
 
 ### 🪟 Windows Kullanıcıları
 
@@ -66,7 +65,6 @@ Flags:
   -h, --help                help for anitr-cli
       --rofi                Rofi arayüzü ile başlatır.
       --rofi-flags string   Rofi için flag'ler
-      --update              anitr-cli aracını en son sürüme günceller.
       --version             Versiyon bilgisi.
 ```
 
