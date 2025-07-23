@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"regexp"
 	"slices"
 	"sort"
 	"strconv"
@@ -203,18 +202,11 @@ func main() {
 	rootCmd.Run = func(cmd *cobra.Command, args []string) {
 		disableRpc := f.DisableRPC
 		printVersion := f.PrintVersion
-		checkUpdate := f.CheckUpdate
 		rofiMode := f.RofiMode
 		rofiFlags := f.RofiFlags
 
 		if printVersion {
 			update.Version()
-			return
-		}
-
-		if checkUpdate {
-			err := update.RunUpdate()
-			utils.FailIfErr(err, logger)
 			return
 		}
 
@@ -225,17 +217,17 @@ func main() {
 		update.CheckUpdates()
 
 		ui.ClearScreen()
-		sourceList := []string{"AnimeciX", "OpenAnime"}
+		sourceList := []string{"OpenAnime", "AnimeciX"}
 		selectedSource, err := ui.SelectionList(internal.UiParams{Mode: uiMode, RofiFlags: &rofiFlags, Label: "Kaynak seç ", List: &sourceList})
 		utils.FailIfErr(err, logger)
 
 		var source models.AnimeSource
 
 		switch strings.ToLower(selectedSource) {
-		case "animecix":
-			source = animecix.AnimeCix{}
 		case "openanime":
 			source = openanime.OpenAnime{}
+		case "animecix":
+			source = animecix.AnimeCix{}
 		}
 
 		if strings.ToLower(selectedSource) == "" {
@@ -253,16 +245,11 @@ func main() {
 
 		animeNames := []string{}
 		animeTypes := []string{}
-		var id string
 
+		animeMap := make(map[string]models.Anime)
 		for _, item := range searchData {
-			if item.ID != nil {
-				id = strconv.Itoa(*item.ID)
-			} else if item.Slug != nil {
-				id = *item.Slug
-			}
-
-			animeNames = append(animeNames, fmt.Sprintf("%s (ID: %s)", item.Title, id))
+			animeNames = append(animeNames, item.Title)
+			animeMap[item.Title] = item
 
 			if item.TitleType != nil {
 				ttype := item.TitleType
@@ -296,21 +283,18 @@ func main() {
 			posterUrl = "anitrcli"
 		}
 
-		re := regexp.MustCompile(`^(.+?) \(ID: ([a-zA-Z0-9\-]+)\)$`)
-		match := re.FindStringSubmatch(selectedAnimeName)
-		if len(match) < 3 {
-			log.Fatal("ID eşleşmedi")
-		}
-		selectedAnimeName = match[1]
+		selectedAnimeName = selectedAnime.Title
 		var (
 			selectedAnimeID   int
 			selectedAnimeSlug string
 		)
 
 		if source.Source() == "animecix" {
-			selectedAnimeID, _ = strconv.Atoi(match[2])
+			selectedId := selectedAnime.ID
+			selectedAnimeID = *selectedId
 		} else if source.Source() == "openanime" {
-			selectedAnimeSlug = match[2]
+			selectedSlug := selectedAnime.Slug
+			selectedAnimeSlug = *selectedSlug
 		}
 
 		var (
