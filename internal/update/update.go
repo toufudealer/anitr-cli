@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"runtime"
+	"time"
 
 	"github.com/Masterminds/semver/v3"
 )
@@ -35,36 +35,28 @@ func fetchApi(url string) (interface{}, error) {
 	return result, err
 }
 
-func FetchUpdates() (msg, downloadUrl string, err error) {
+func FetchUpdates() (msg string, err error) {
 	data, err := fetchApi(githubApi)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 
 	latestVerStr := data.(map[string]interface{})["tag_name"].(string)
-	execFile := data.(map[string]interface{})["assets"].([]interface{})[0].(map[string]interface{})["browser_download_url"].(string)
 	currentVer, err := semver.NewVersion(CurrentVersion)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 
 	latestVer, err := semver.NewVersion(latestVerStr)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 
 	if !currentVer.LessThan(latestVer) {
-		return "Zaten en son sürümdesiniz.", "", nil
+		return "Zaten en son sürümdesiniz.", nil
 	} else {
-		return fmt.Sprintf("Yeni sürüm bulundu: %s -> %s", CurrentVersion, latestVerStr), execFile, err
+		return fmt.Sprintf("Yeni sürüm bulundu: %s -> %s", CurrentVersion, latestVerStr), err
 	}
-}
-
-func RunUpdate() error {
-	fmt.Println(ColorYellow + "UYARI: Bu güncelleme yöntemi eski (deprecated) hâle gelmiştir." + ColorReset)
-	fmt.Println(ColorYellow + "Lütfen anitr-cli'yi manuel olarak güncelleyiniz." + ColorReset)
-	fmt.Println(ColorYellow + "Yeni sürümü edinmek için GitHub sayfasını ziyaret edin: https://github.com/xeyossr/anitr-cli" + ColorReset)
-	return nil
 }
 
 func Version() {
@@ -72,7 +64,7 @@ func Version() {
 }
 
 func CheckUpdates() {
-	msg, _, err := FetchUpdates()
+	msg, err := FetchUpdates()
 
 	if err != nil {
 		fmt.Println(ColorRed + "Güncelleme kontrolü sırasında bir hata oluştu!" + ColorReset)
@@ -81,6 +73,6 @@ func CheckUpdates() {
 
 	if msg != "Zaten en son sürümdesiniz." {
 		fmt.Println(ColorCyan + msg + ColorReset)
-		os.Exit(0)
+		time.Sleep(2 * time.Second)
 	}
 }
