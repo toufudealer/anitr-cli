@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/reflow/truncate"
 	"github.com/xeyossr/anitr-cli/internal"
+	"github.com/xeyossr/anitr-cli/internal/utils"
 )
 
 var (
@@ -147,8 +148,8 @@ func (m SelectionListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.quitting = true
 			return m, tea.Quit
 
-		case "ctrl+c", "esc":
-			m.err = errors.New("iptal edildi")
+		case "ctrl+c", "esc", "q":
+			m.err = utils.ErrQuit
 			m.quitting = true
 			return m, tea.Quit
 		}
@@ -216,7 +217,7 @@ func (m InputFromUserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.quitting = true
 			return m, tea.Quit
 		case "ctrl+c", "esc":
-			m.err = errors.New("iptal edildi")
+			m.err = utils.ErrQuit
 			m.quitting = true
 			return m, tea.Quit
 		}

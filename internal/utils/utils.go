@@ -1,15 +1,17 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
+
+var ErrQuit = errors.New("quit requested")
 
 type Logger struct {
 	File *os.File
@@ -21,46 +23,37 @@ func GetImage(url string) (string, error) {
 
 	resp, err := http.Get(url)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("görsel indirilemedi: %w", err)
 	}
-
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("görsel isteğine başarısız yanıt: %s", resp.Status)
+	}
 
 	out, err := os.Create(tempPath)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("geçici dosya oluşturulamadı: %w", err)
 	}
-
 	defer out.Close()
 
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("görsel yazılamadı: %w", err)
 	}
 
 	return tempPath, nil
-}
-
-func SendNotification(title, msg, icon string) error {
-	cmd := exec.Command("notify-send", "-i", icon, "-a", title, msg)
-	err := cmd.Run()
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func NewLogger() (*Logger, error) {
 	logPath := filepath.Join("/tmp", "anitr-cli.log")
 	file, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("log dosyası açılamadı: %w", err)
 	}
 
-	multiWriter := io.MultiWriter(os.Stdout, file)
-
-	logger := log.New(multiWriter, "", log.LstdFlags|log.Lmsgprefix)
+	//multiWriter := io.MultiWriter(file)
+	logger := log.New(file, "", log.LstdFlags|log.Lmsgprefix)
 
 	return &Logger{
 		File: file,
@@ -88,6 +81,10 @@ func (l *Logger) Close() error {
 // FailIfErr kritik hata durumunda loglar ve kapanır
 func FailIfErr(err error, logger *Logger) {
 	if err != nil {
+		if errors.Is(err, ErrQuit) {
+			os.Exit(0)
+		}
+
 		logger.LogError(err)
 		logger.LogMsg("\033[31mKritik hata: %v\033[0m\n", err)
 		logger.Close()
@@ -98,6 +95,10 @@ func FailIfErr(err error, logger *Logger) {
 // CheckErr hata varsa loglar, ekranda gösterir ve devam etmeyi kullanıcıya bırakır
 func CheckErr(err error, logger *Logger) bool {
 	if err != nil {
+		if errors.Is(err, ErrQuit) {
+			os.Exit(0)
+		}
+
 		logger.LogError(err)
 		fmt.Printf("\n\033[31mHata oluştu: %v\033[0m\nLog detayları: %s\nDevam etmek için bir tuşa basın...\n", err, logger.File.Name())
 		fmt.Scanln()
@@ -112,6 +113,7 @@ func IsValidImage(url string) bool {
 	if err != nil {
 		return false
 	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return false
@@ -128,4 +130,10 @@ func NormalizeTurkishToASCII(input string) string {
 		"Ö", "O", "Ü", "U", "İ", "I", "Ç", "C", "Ş", "S", "Ğ", "G",
 	)
 	return replacer.Replace(input)
+}
+
+func PrintError(err error) {
+	if err != nil {
+		fmt.Printf("\033[31mHata: %v\033[0m\n", err)
+	}
 }

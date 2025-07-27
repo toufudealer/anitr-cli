@@ -22,34 +22,34 @@ const (
 func fetchApi(url string) (interface{}, error) {
 	resp, err := http.Get(url)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("API'ye erişim başarısız: %w", err)
 	}
 	defer resp.Body.Close()
 
 	var result interface{}
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("API'den veri okunamadı: %w", err)
 	}
 	json.Unmarshal(respBody, &result)
-	return result, err
+	return result, fmt.Errorf("API'den veri alınamadı: %w", err)
 }
 
 func FetchUpdates() (msg string, err error) {
 	data, err := fetchApi(githubApi)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("güncelleme verileri alınamadı: %w", err)
 	}
 
 	latestVerStr := data.(map[string]interface{})["tag_name"].(string)
 	currentVer, err := semver.NewVersion(CurrentVersion)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("geçerli sürüm numarası geçersiz: %v", err)
 	}
 
 	latestVer, err := semver.NewVersion(latestVerStr)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("en son sürüm numarası geçersiz: %v", err)
 	}
 
 	if !currentVer.LessThan(latestVer) {
