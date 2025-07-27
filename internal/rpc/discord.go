@@ -10,7 +10,7 @@ import (
 func ClientLogin() (bool, error) {
 	err := client.Login("1383421771159572600")
 	if err != nil {
-		return false, fmt.Errorf("failed to log in to Discord RPC: %v", err)
+		return false, fmt.Errorf("discord rpc login başarısız: %v", err)
 	}
 
 	return true, nil
@@ -39,7 +39,7 @@ func DiscordRPC(params internal.RPCParams, loggedIn bool) (bool, error) {
 
 	if err != nil {
 		loggedIn = false
-		return loggedIn, fmt.Errorf("failed to set activity: %v", err)
+		return loggedIn, fmt.Errorf("discord rpc güncelleme başarısız: %v", err)
 	}
 
 	return loggedIn, nil
