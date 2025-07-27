@@ -15,20 +15,32 @@ import (
 )
 
 var (
-	highlightColor = "#f5c2e7"
-	filterInputFg  = "#a6e3a1"
-	filterCursorFg = "#f9e2af"
-	titleFg        = "#f5c2e7"
-	inputPromptFg  = "#f5c2e7"
-	inputTextFg    = "#cdd6f4"
-	inputCursorFg  = "#f9e2af"
+	highlightFgColor = "#e45cc0"
+	normalFgColor    = "#aabbcc"
+	highlightColor   = "#e45cc0"
+	filterInputFg    = "#8bb27f"
+	filterCursorFg   = "#c4b48b"
+	titleFg          = "#c4b48b"
+	titleBg          = "#2a2c36"
+	inputPromptFg    = "#c4b48b"
+	inputTextFg      = "#aabbcc"
+	inputCursorFg    = "#c4b48b"
+	selectionMark    = "▸ "
 
 	pinkHighlight = lipgloss.NewStyle().Foreground(lipgloss.Color(highlightColor))
-	selectionMark = pinkHighlight.Render("▸ ")
 
 	filterInputStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color(filterInputFg)).
 				Bold(true)
+
+	highlightStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color(highlightFgColor)).
+			Bold(true).
+			Padding(0, 1)
+
+	normalStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color(normalFgColor)).
+			Padding(0, 1)
 )
 
 type listItem string
@@ -54,23 +66,21 @@ func (d slimDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 
 	isSelected := index == m.Index()
 
-	prefix := ""
+	prefix := "  "
 	if isSelected {
 		prefix = selectionMark
-	} else {
-		prefix = "  "
 	}
 
-	availableWidth := m.Width() - lipgloss.Width(prefix) - 2
+	availableWidth := m.Width() - lipgloss.Width(prefix) - 4
 
 	displayTitle := truncate.StringWithTail(title, uint(availableWidth), "...")
 
 	line := prefix + displayTitle
 
-	line = lipgloss.NewStyle().PaddingLeft(2).Render(line)
-
 	if isSelected {
-		line = pinkHighlight.Render(line)
+		line = highlightStyle.Render(line)
+	} else {
+		line = normalStyle.Render(line)
 	}
 
 	fmt.Fprint(w, line)
@@ -96,9 +106,11 @@ func NewSelectionListModel(params internal.UiParams) SelectionListModel {
 	l := list.New(items, slimDelegate{}, defaultWidth, defaultHeight)
 
 	titleStyle := lipgloss.NewStyle().
+		Align(lipgloss.Center).
+		Padding(0, 2).
+		Background(lipgloss.Color(titleBg)).
 		Foreground(lipgloss.Color(titleFg)).
-		Bold(true).
-		Align(lipgloss.Center)
+		Bold(true)
 
 	l.Title = titleStyle.Render(params.Label)
 	l.SetShowStatusBar(false)
