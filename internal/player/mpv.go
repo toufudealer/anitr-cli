@@ -53,7 +53,7 @@ func Play(params MPVParams) (*exec.Cmd, string, error) {
 		return cmd, "", err
 	}
 
-	maxRetries := 10
+	maxRetries := 25
 	retryDelay := 300 * time.Millisecond
 	for i := 0; i < maxRetries; i++ {
 		time.Sleep(retryDelay)
