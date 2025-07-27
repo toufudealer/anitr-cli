@@ -27,14 +27,14 @@ func (o OpenAnime) GetSearchData(query string) ([]models.Anime, error) {
 	url := fmt.Sprintf("%s/anime/search?q=%s", configOpenAnime.BaseUrl, normalizedQuery)
 	data, err := internal.GetJson(url, configOpenAnime.HttpHeaders)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("arama verileri alınamadı: %w", err)
 	}
 
 	var returnData []models.Anime
 	for _, item := range data.([]interface{}) {
 		anime, ok := item.(map[string]interface{})
 		if !ok {
-			return nil, fmt.Errorf("invalid anime format")
+			return nil, fmt.Errorf("geçersiz anime veri formatı")
 		}
 
 		name, ok := anime["english"].(string)
@@ -67,21 +67,25 @@ func (o OpenAnime) GetSeasonsData(params models.SeasonParams) ([]models.Season, 
 	url := fmt.Sprintf("%s/anime/%s", configOpenAnime.BaseUrl, *params.Slug)
 	data, err := internal.GetJson(url, configOpenAnime.HttpHeaders)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("sezon verileri alınamadı: %w", err)
 	}
 
 	seasonData, ok := data.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid season data format")
+		return nil, fmt.Errorf("sezon verisi beklenen formatta değil")
 	}
 
-	seasonCount := int(seasonData["numberOfSeasons"].(float64))
+	seasonCount, ok := seasonData["numberOfSeasons"].(float64)
+	if !ok {
+		seasonCount = 1
+	}
+
 	contentType := seasonData["type"].(string)
 	isMovie := strings.ToLower(contentType) == "movie"
 
 	return []models.Season{
 		{
-			Seasons: &[]int{seasonCount},
+			Seasons: &[]int{int(seasonCount)},
 			Type:    &contentType,
 			IsMovie: &isMovie,
 		},
@@ -91,7 +95,7 @@ func (o OpenAnime) GetSeasonsData(params models.SeasonParams) ([]models.Season, 
 func (o OpenAnime) GetEpisodesData(params models.EpisodeParams) ([]models.Episode, error) {
 	seasonData, err := o.GetSeasonsData(models.SeasonParams{Slug: params.Slug})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("sezon bilgisi alınamadı: %w", err)
 	}
 
 	var episodes []models.Episode
@@ -102,7 +106,7 @@ func (o OpenAnime) GetEpisodesData(params models.EpisodeParams) ([]models.Episod
 		url := fmt.Sprintf("%s/anime/%s/season/%d", configOpenAnime.BaseUrl, *params.Slug, season)
 		data, err := internal.GetJson(url, configOpenAnime.HttpHeaders)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("sezon %d için bölüm verileri alınamadı: %w", season, err)
 		}
 
 		seasonInfo, ok := data.(map[string]interface{})["season"].(map[string]interface{})
@@ -140,7 +144,7 @@ func (o OpenAnime) GetEpisodesData(params models.EpisodeParams) ([]models.Episod
 
 func (o OpenAnime) GetWatchData(req models.WatchParams) ([]models.Watch, error) {
 	if req.Slug == nil || req.Extra == nil {
-		return nil, fmt.Errorf("slug or extra not provided")
+		return nil, fmt.Errorf("slug veya ekstra bilgiler eksik")
 	}
 
 	slug := *req.Slug
@@ -148,24 +152,24 @@ func (o OpenAnime) GetWatchData(req models.WatchParams) ([]models.Watch, error) 
 
 	seasonNum, ok := extra["season_num"].(int)
 	if !ok {
-		return nil, fmt.Errorf("season_num not provided or not int")
+		return nil, fmt.Errorf("season_num geçersiz veya eksik")
 	}
 
 	episodeNum, ok := extra["episode_num"].(int)
 	if !ok {
-		return nil, fmt.Errorf("episode_num not provided or not int")
+		return nil, fmt.Errorf("episode_num geçersiz veya eksik")
 	}
 
 	baseURL := fmt.Sprintf("%s/anime/%s/season/%d/episode/%d", configOpenAnime.BaseUrl, slug, int(seasonNum), int(episodeNum))
 	data, err := internal.GetJson(baseURL, configOpenAnime.HttpHeaders)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get episode metadata: %w", err)
+		return nil, fmt.Errorf("bölüm verisi alınamadı: %w", err)
 	}
 
 	// FANSUBS
 	rawFansubs, ok := data.(map[string]interface{})["fansubs"].([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("fansubs not found or invalid format")
+		return nil, fmt.Errorf("altyazılar bulunamadı veya beklenen formatta değil")
 	}
 
 	var fansubs []map[string]string
@@ -177,7 +181,7 @@ func (o OpenAnime) GetWatchData(req models.WatchParams) ([]models.Watch, error) 
 
 		is4K, ok := fm["is4K"].(bool)
 		if !ok {
-			return nil, fmt.Errorf("invalid is4K field in fansub")
+			return nil, fmt.Errorf("altyazı 'is4K' bilgisi eksik")
 		}
 		if is4K {
 			continue
@@ -188,7 +192,7 @@ func (o OpenAnime) GetWatchData(req models.WatchParams) ([]models.Watch, error) 
 		secureName, secureOK := fm["secureName"].(string)
 
 		if !idOK || !nameOK || !secureOK {
-			return nil, fmt.Errorf("invalid fansub data: %+v", fm)
+			return nil, fmt.Errorf("altyazı bilgisi eksik: %+v", fm)
 		}
 
 		fansubs = append(fansubs, map[string]string{
@@ -199,24 +203,24 @@ func (o OpenAnime) GetWatchData(req models.WatchParams) ([]models.Watch, error) 
 	}
 
 	if len(fansubs) == 0 {
-		return nil, fmt.Errorf("only 4K fansubs found or no valid fansubs")
+		return nil, fmt.Errorf("geçerli altyazı bulunamadı (yalnızca 4K olabilir)")
 	}
 
 	// GET VIDEO STREAMS
 	videoURL := fmt.Sprintf("%s?fansub=%s", baseURL, fansubs[0]["id"])
 	data, err = internal.GetJson(videoURL, configOpenAnime.HttpHeaders)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch video stream data: %w", err)
+		return nil, fmt.Errorf("video bağlantıları alınamadı: %w", err)
 	}
 
 	episodeData, ok := data.(map[string]interface{})["episodeData"].(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("episodeData missing or malformed")
+		return nil, fmt.Errorf("episodeData eksik veya hatalı")
 	}
 
 	files, ok := episodeData["files"].([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("video files missing or malformed")
+		return nil, fmt.Errorf("video dosyaları bulunamadı veya geçersiz")
 	}
 
 	var labels []string
@@ -233,7 +237,7 @@ func (o OpenAnime) GetWatchData(req models.WatchParams) ([]models.Watch, error) 
 		resolutionVal, resOK := fileData["resolution"].(float64)
 
 		if !urlOK || !resOK {
-			continue // skip broken entries
+			continue
 		}
 
 		labels = append(labels, fmt.Sprintf("%dp", int(resolutionVal)))
@@ -241,7 +245,7 @@ func (o OpenAnime) GetWatchData(req models.WatchParams) ([]models.Watch, error) 
 	}
 
 	if len(urls) == 0 {
-		return nil, fmt.Errorf("no valid video streams found")
+		return nil, fmt.Errorf("geçerli video bağlantısı bulunamadı")
 	}
 
 	return []models.Watch{

@@ -49,12 +49,12 @@ func (a AnimeCix) GetSearchData(query string) ([]models.Anime, error) {
 	for _, item := range data {
 		id, ok := item["id"].(float64)
 		if !ok {
-			return nil, fmt.Errorf("id is not a float")
+			return nil, fmt.Errorf("id verisi beklenen formatta değil")
 		}
 		intId := int(id)
 		title, ok := item["name"].(string)
 		if !ok {
-			return nil, fmt.Errorf("title is not a string")
+			return nil, fmt.Errorf("title verisi beklenen formatta değil")
 		}
 
 		animeType, ok := item["type"].(string)
@@ -101,7 +101,7 @@ func (a AnimeCix) GetSeasonsData(params models.SeasonParams) ([]models.Season, e
 func (a AnimeCix) GetEpisodesData(params models.EpisodeParams) ([]models.Episode, error) {
 	episodesRaw, err := FetchAnimeEpisodesData(*params.SeasonID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("bölüm verileri alınamadı: %w", err)
 	}
 
 	var episodes []models.Episode
@@ -137,12 +137,12 @@ func (a AnimeCix) GetWatchData(req models.WatchParams) ([]models.Watch, error) {
 	if isMovie {
 		data, err := AnimeMovieWatchApiUrl(id)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("film verileri alınamadı: %w", err)
 		}
 
 		streams, ok := data["video_streams"].([]interface{})
 		if !ok {
-			return nil, fmt.Errorf("invalid or missing video_streams")
+			return nil, fmt.Errorf("video_streams verisi beklenen formatta değil")
 		}
 
 		var labels []string
@@ -175,7 +175,7 @@ func (a AnimeCix) GetWatchData(req models.WatchParams) ([]models.Watch, error) {
 
 	videoStreams, err := AnimeWatchApiUrl(url)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("bölüm verileri alınamadı: %w", err)
 	}
 
 	captionUrl, err := FetchTRCaption(seasonIndex, episodeIndex, id)
@@ -210,24 +210,24 @@ func FetchAnimeSearchData(query string) ([]map[string]interface{}, error) {
 	m, ok := data.(map[string]interface{})
 
 	if !ok {
-		return nil, fmt.Errorf("data is not a map")
+		return nil, fmt.Errorf("data verisi beklenen formatta değil")
 	}
 
 	resultsRaw, exists := m["results"]
 	if !exists {
-		return nil, fmt.Errorf("'results' key not found")
+		return nil, fmt.Errorf("'results' verisi bulunamadı")
 	}
 
 	resultsSlice, ok := resultsRaw.([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("'results' is not a slice")
+		return nil, fmt.Errorf("'results' verisi beklenen formatta değil")
 	}
 
 	var parsed []map[string]interface{}
 	for _, item := range resultsSlice {
 		itemMap, ok := item.(map[string]interface{})
 		if !ok {
-			return nil, fmt.Errorf("'results'.item is not a map")
+			return nil, fmt.Errorf("'item' verisi beklenen formatta değil")
 		}
 
 		entry := map[string]interface{}{
@@ -248,32 +248,32 @@ func FetchAnimeSeasonsData(id int) ([]int, error) {
 	url := fmt.Sprintf("%ssecure/related-videos?episode=1&season=1&titleId=%d&videoId=637113", configAnimecix.AlternativeUrl, id)
 	data, err := internal.GetJson(url, configAnimecix.HttpHeaders)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("sezon verileri alınamadı: %w", err)
 	}
 
 	dataMap, ok := data.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("data is not a map")
+		return nil, fmt.Errorf("data beklenen formatta değil")
 	}
 
 	videosField, ok := dataMap["videos"].([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("'videos' key not found")
+		return nil, fmt.Errorf("'videos' verisi yok veya beklenen formatta değil")
 	}
 
 	video, ok := videosField[0].(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("'videos'[0] is not a map")
+		return nil, fmt.Errorf("'videos'[0] verisi beklenen formatta değil")
 	}
 
 	title, ok := video["title"].(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("'title' key not found")
+		return nil, fmt.Errorf("'title' verisi yok veya beklenen formatta değil")
 	}
 
 	seasons, ok := title["seasons"].([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("'seasons' key not found")
+		return nil, fmt.Errorf("'seasons' verisi yok veya beklenen formatta değil")
 	}
 
 	count := len(seasons)
@@ -291,7 +291,7 @@ func FetchAnimeEpisodesData(id int) ([]map[string]interface{}, error) {
 	seasons, err := FetchAnimeSeasonsData(id)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("sezon verileri alınamadı: %w", err)
 	}
 
 	for _, seasonIndex := range seasons {
@@ -299,17 +299,17 @@ func FetchAnimeEpisodesData(id int) ([]map[string]interface{}, error) {
 		data, err := internal.GetJson(url, configAnimecix.HttpHeaders)
 
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("bölüm verileri alınamadı: %w", err)
 		}
 
 		dataMap, ok := data.(map[string]interface{})
 		if !ok {
-			return nil, fmt.Errorf("data is not a map")
+			return nil, fmt.Errorf("data beklenen formatta değil")
 		}
 
 		videosRaw, ok := dataMap["videos"].([]interface{})
 		if !ok {
-			return nil, fmt.Errorf("'videos' key not found")
+			return nil, fmt.Errorf("'videos' verisi yok veya beklenen formatta değil")
 		}
 
 		for _, video := range videosRaw {
@@ -321,14 +321,14 @@ func FetchAnimeEpisodesData(id int) ([]map[string]interface{}, error) {
 
 			name, ok := video["name"].(string)
 			if !ok {
-				return nil, fmt.Errorf("name is not a string")
+				return nil, fmt.Errorf("name verisi beklenen formatta değil")
 			}
 
 			if !seenEpisodes[name] {
 				episodeUrl, ok := video["url"].(string)
 
 				if !ok {
-					return nil, fmt.Errorf("url is not a string")
+					return nil, fmt.Errorf("url verisi beklenen formatta değil")
 				}
 
 				seasonNum := video["season_num"]
@@ -359,7 +359,7 @@ func AnimeWatchApiUrl(Url string) ([]map[string]string, error) {
 	pathParts := strings.Split(parsedUrl.Path, "/")
 
 	if len(pathParts) < 3 {
-		return nil, fmt.Errorf("path format unexpected")
+		return nil, fmt.Errorf("path verisi beklenen formatta değil")
 	}
 
 	embedID := pathParts[2]
@@ -371,20 +371,20 @@ func AnimeWatchApiUrl(Url string) ([]map[string]string, error) {
 
 	response, err := http.Get(apiUrl)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("video verileri alınamadı: %w", err)
 	}
 
 	defer response.Body.Close()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("video verileri okunamadı: %w", err)
 	}
 
 	var videoResp VideoResponse
 	err = json.Unmarshal(body, &videoResp)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("video verileri ayrıştırılamadı: %w", err)
 	}
 
 	results := []map[string]string{}
@@ -404,33 +404,33 @@ func FetchTRCaption(seasonIndex, episodeIndex, id int) (string, error) {
 	url := fmt.Sprintf("%ssecure/related-videos?episode=1&season=%d&titleId=%d&videoId=637113", configAnimecix.AlternativeUrl, seasonIndex+1, id)
 	data, err := internal.GetJson(url, configAnimecix.HttpHeaders)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("altyazı verileri alınamadı: %w", err)
 	}
 
 	dataMap, ok := data.(map[string]interface{})
 	if !ok {
-		return "", fmt.Errorf("data is not a map")
+		return "", fmt.Errorf("data verisi beklenen formatta değil")
 	}
 
 	videosSlice, ok := dataMap["videos"].([]interface{})
 	if !ok {
-		return "", fmt.Errorf("'videos' key not found")
+		return "", fmt.Errorf("'videos' verisi yok veya beklenen formatta değil")
 	}
 
 	video, ok := videosSlice[episodeIndex].(map[string]interface{})
 	if !ok {
-		return "", fmt.Errorf("episode not found")
+		return "", fmt.Errorf("episode verisi yok veya beklenen formatta değil")
 	}
 
 	captions, ok := video["captions"].([]interface{})
 	if !ok {
-		return "", fmt.Errorf("'captions' key not found")
+		return "", fmt.Errorf("'captions' verisi yok veya beklenen formatta değil")
 	}
 
 	for _, caption := range captions {
 		caption, ok := caption.(map[string]interface{})
 		if !ok {
-			return "", fmt.Errorf("caption not found")
+			return "", fmt.Errorf("caption verisi yok veya beklenen formatta değil")
 		}
 
 		lang, ok := caption["language"].(string)
@@ -440,7 +440,7 @@ func FetchTRCaption(seasonIndex, episodeIndex, id int) (string, error) {
 	}
 
 	if len(captions) == 0 {
-		return "", fmt.Errorf("no captions found")
+		return "", fmt.Errorf("altyazı bulunamadı")
 	}
 	caption0 := captions[0].(map[string]interface{})
 	return caption0["url"].(string), nil
@@ -461,53 +461,53 @@ func AnimeMovieWatchApiUrl(id int) (map[string]interface{}, error) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("HTTP isteği başarısız: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("HTTP yanıtı okunamadı: %w", err)
 	}
 
 	var result interface{}
 	err = json.Unmarshal(respBody, &result)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("JSON ayrıştırma hatası: %w", err)
 	}
 
 	dataMap, ok := result.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("data is not a map")
+		return nil, fmt.Errorf("data beklenen formatta değil")
 	}
 
 	titleMap, ok := dataMap["title"].(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("'title' key not found")
+		return nil, fmt.Errorf("'title' verisi yok veya beklenen formatta değil")
 	}
 
 	videosRaw, ok := titleMap["videos"].([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("'videos' key not found")
+		return nil, fmt.Errorf("'videos' verisi yok veya beklenen formatta değil")
 	}
 
 	for _, video := range videosRaw {
 		video, ok := video.(map[string]interface{})
 
 		if !ok {
-			return nil, fmt.Errorf("'videos' key unexpected format")
+			return nil, fmt.Errorf("'videos' verisi yok veya beklenen formatta değil")
 		}
 
 		videoUrl, ok := video["url"].(string)
 
 		if !ok {
-			return nil, fmt.Errorf("'url' key not found")
+			return nil, fmt.Errorf("'url' verisi yok veya beklenen formatta değil")
 		}
 
 		client := &http.Client{}
 		req, err := http.NewRequest("GET", videoUrl, nil)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("HTTP isteği oluşturulamadı: %w", err)
 		}
 
 		req.Header.Set("Accept", configAnimecix.HttpHeaders["Accept"])
@@ -516,7 +516,7 @@ func AnimeMovieWatchApiUrl(id int) (map[string]interface{}, error) {
 
 		resp, err := client.Do(req)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("video verileri alınamadı: %w", err)
 		}
 
 		resp.Body.Close()
@@ -524,13 +524,13 @@ func AnimeMovieWatchApiUrl(id int) (map[string]interface{}, error) {
 		finalUrl := resp.Request.URL.String()
 		parsedUrl, err := url.Parse(finalUrl)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("URL ayrıştırma hatası: %w", err)
 		}
 
 		pathParts := strings.Split(parsedUrl.Path, "/")
 
 		if len(pathParts) < 3 {
-			log.Printf("path format unexpected")
+			log.Printf("path verisi beklenen formatta değil: %s", parsedUrl.Path)
 			continue
 		}
 
@@ -542,20 +542,20 @@ func AnimeMovieWatchApiUrl(id int) (map[string]interface{}, error) {
 
 		response, err := http.Get(apiUrl)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("video verileri alınamadı: %w", err)
 		}
 
 		defer response.Body.Close()
 
 		respBody, err := io.ReadAll(response.Body)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("video verileri okunamadı: %w", err)
 		}
 
 		var videoResp VideoResponse
 		err = json.Unmarshal(respBody, &videoResp)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("video verileri ayrıştırılamadı: %w", err)
 		}
 
 		result := make(map[string]interface{})
@@ -573,7 +573,7 @@ func AnimeMovieWatchApiUrl(id int) (map[string]interface{}, error) {
 
 		captions, ok := video["captions"].([]interface{})
 		if !ok {
-			return nil, fmt.Errorf("'captions' key not found")
+			return nil, fmt.Errorf("'captions' verisi yok veya beklenen formatta değil")
 		}
 
 		if len(captions) < 1 {
@@ -584,7 +584,7 @@ func AnimeMovieWatchApiUrl(id int) (map[string]interface{}, error) {
 		for _, caption := range captions {
 			caption, ok := caption.(map[string]interface{})
 			if !ok {
-				return nil, fmt.Errorf("caption unexpected format")
+				return nil, fmt.Errorf("caption verisi beklenen formatta değil")
 			}
 
 			lang, ok := caption["language"].(string)
@@ -592,7 +592,7 @@ func AnimeMovieWatchApiUrl(id int) (map[string]interface{}, error) {
 				result["caption_url"] = caption["url"]
 			} else {
 				if len(captions) == 0 {
-					return nil, fmt.Errorf("no captions found")
+					return nil, fmt.Errorf("altyazı bulunamadı")
 				}
 				result["caption_url"] = captions[0].(map[string]interface{})["url"]
 			}
@@ -601,5 +601,5 @@ func AnimeMovieWatchApiUrl(id int) (map[string]interface{}, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("AnimeMovieWatchApiUrl() panic")
+	return nil, fmt.Errorf("video verileri alınamadı")
 }

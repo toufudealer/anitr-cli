@@ -2,6 +2,7 @@ package internal
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 )
@@ -48,7 +49,7 @@ func GetJson(url string, headers map[string]string) (interface{}, error) {
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("HTTP isteği oluşturulamadı: %w", err)
 	}
 
 	for k, m := range headers {
@@ -57,19 +58,19 @@ func GetJson(url string, headers map[string]string) (interface{}, error) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("HTTP isteği başarısız: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("HTTP yanıtı okunamadı: %w", err)
 	}
 
 	var result interface{}
 	err = json.Unmarshal(body, &result)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("JSON ayrıştırma başarısız: %w", err)
 	}
 
 	return result, nil

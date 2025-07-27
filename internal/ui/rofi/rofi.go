@@ -3,6 +3,7 @@ package rofi
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os/exec"
 	"strings"
 
@@ -11,7 +12,11 @@ import (
 
 func isRofiExist() error {
 	_, err := exec.LookPath("rofi")
-	return err
+	if err != nil {
+		return fmt.Errorf("rofi bulunamadı: %w", err)
+	}
+
+	return nil
 }
 
 func SelectionList(params internal.UiParams) (string, error) {
@@ -37,7 +42,7 @@ func SelectionList(params internal.UiParams) (string, error) {
 
 	out, err := cmd.Output()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("rofi komutu çalıştırılamadı: %w", err)
 	}
 
 	selection := strings.TrimSpace(string(out))
@@ -61,7 +66,7 @@ func InputFromUser(params internal.UiParams) (string, error) {
 
 	out, err := cmd.Output()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("rofi komutu çalıştırılamadı: %w", err)
 	}
 
 	resp := strings.TrimSpace(string(out))
