@@ -1,106 +1,120 @@
- # anitr-cli
-
 <div align="center">
- 
-  **Süper Hızlı** bir şekilde anime araması yapabileceğiniz ve istediğiniz animeyi Türkçe altyazılı izleyebileceğiniz terminal aracı 💫
 
-  [![Github_Release](https://img.shields.io/github/v/release/xeyossr/anitr-cli?style=for-the-badge&include_prereleases&label=GitHub%20Release)](https://github.com/xeyossr/anitr-cli/releases) [![AUR](https://img.shields.io/aur/version/anitr-cli?style=for-the-badge)](https://aur.archlinux.org/packages/anitr-cli) [![Windows_Fork](https://img.shields.io/github/v/release/mstsecurity/anitr-cli-windows?include_prereleases&display_name=release&label=Windows%20Fork&style=for-the-badge)](https://github.com/mstsecurity/anitr-cli-windows) 
+<h1>anitr-cli</h1>
+<h3>Terminalde Türkçe altyazılı anime izleme ve arama aracı 🚀</h3>
 
----
+<img src="https://raw.githubusercontent.com/xeyossr/anitr-cli/main/assets/anitr-preview.gif" alt="anitr-cli preview" width="300"/>
+
+<p>
+  <a href="https://github.com/xeyossr/anitr-cli/releases">
+    <img src="https://img.shields.io/github/v/release/xeyossr/anitr-cli?style=for-the-badge&include_prereleases&label=GitHub%20Sürüm">
+  </a>
+  <a href="https://aur.archlinux.org/packages/anitr-cli">
+    <img src="https://img.shields.io/aur/version/anitr-cli?style=for-the-badge&label=AUR">
+  </a>
+  <a href="https://github.com/mstsecurity/anitr-cli-windows">
+    <img src="https://img.shields.io/github/v/release/mstsecurity/anitr-cli-windows?include_prereleases&label=Windows%20Fork&style=for-the-badge">
+  </a>
+</p>
 
 </div>
 
-## 🌟 Özellikler
-- **AnimeCix** ve **OpenAnime** desteği: Favori anime sitelerinden animelerinizi izleyin!
-- **TUI ve Rofi UI**: Terminal veya minimalist GUI arayüzü ile kullanım.
-- **Discord RPC**: İzlediğiniz anime bilgilerini Discord profilinizde gösterin, arkadaşlarınızla paylaşın.
+---
 
-## 💻 Kurulum
+## 🎬 Özellikler
 
-### 🐧 Linux Kullanıcıları
+- **AnimeCix ve OpenAnime Entegrasyonu**: Popüler anime platformlarından hızlı arama ve izleme imkanı.
+- **Fansub Seçimi**: OpenAnime üzerinden izlerken favori çeviri grubunuzu seçme özgürlüğü.
+- **Çoklu Arayüz Desteği**: Terminal tabanlı TUI ve minimalist grafik arayüz (Rofi UI) seçenekleri.
+- **Discord Rich Presence**: İzlediğiniz animeyi Discord profilinizde paylaşarak arkadaşlarınızla etkileşimde kalın.
+- **Otomatik Güncelleme Kontrolü**: Uygulama her başlatıldığında yeni sürüm olup olmadığını kontrol eder.
 
-Eğer Arch tabanlı bir dağıtım kullanıyorsanız, [AUR](https://aur.archlinux.org/packages/anitr-cli) üzerinden tek bir komut ile indirebilirsiniz:
+---
+
+## ⚡ Kurulum
+
+### 🐧 Linux
+
+#### Arch tabanlı dağıtımlar (AUR):
 
 ```bash
 yay -S anitr-cli
 ```
 
-Eğer Arch tabanlı olmayan bir dağıtım kullanıyorsanız, **en son sürümü** indirmek için aşağıdaki komutları kullanabilirsiniz:
+#### Diğer Linux dağıtımları:
+
 ```bash
 git clone https://github.com/xeyossr/anitr-cli.git
 cd anitr-cli
 make install
 ```
 
-> Not: `anitr-cli`'yi kurabilmek için sisteminizde şu paketlerin kurulu olması gerekir:
-> 
-> **Derleme:** `go`, `git`, `make`   
-> **Kullanım (Zorunlu):** `mpv`   
-> **İsteğe bağlı: rofi (Rofi arayüzünü kullanmak istiyorsanız)**   
-> 
-> Bu paketleri aşağıdaki komutlarla sisteminize kurabilirsiniz:
-> 
-> **Debian / Ubuntu tabanlı sistemler:**
-> ```sudo
-> sudo apt update
-> sudo apt install golang git make mpv rofi
-> ```
-> 
-> **Arch / Manjaro:**
-> ```sudo
-> sudo pacman -S go git make mpv rofi
-> ```
-> 
-> **Fedora:**
-> ```bash
-> sudo dnf install golang git make mpv rofi
-> ```
-> 
-> **openSUSE:**
-> ```bash
-> sudo zypper install go git make mpv rofi
-> ```
-> Ardından `git clone`, `make install` adımlarını uygulayarak kurulumu tamamlayabilirsiniz.
+> **Gereksinimler:**  
+> Derleme: `go`, `git`, `make`  
+> Kullanım: `mpv`  
+> İsteğe bağlı: `rofi` (Rofi arayüzü için)
+
+**Paketleri yüklemek için:**
+
+- **Debian/Ubuntu:**
+  ```bash
+  sudo apt update
+  sudo apt install golang git make mpv rofi
+  ```
+- **Arch/Manjaro:**
+  ```bash
+  sudo pacman -S go git make mpv rofi
+  ```
+- **Fedora:**
+  ```bash
+  sudo dnf install golang git make mpv rofi
+  ```
+- **openSUSE:**
+  ```bash
+  sudo zypper install go git make mpv rofi
+  ```
+
 ---
 
-#### Güncelleme
+### 🔄 Güncelleme
 
-Her çalıştırdığınızda yeni bir güncelleme olup olmadığı denetlenecektir. Eğer güncelleme mevcutsa, şu komutla güncelleyebilirsiniz:
+- **AUR ile kurduysanız:**
+  ```bash
+  yay -Sy anitr-cli
+  ```
+- **Manuel kurulum yaptıysanız:**  
+  Depoyu güncelleyip tekrar `make install` komutunu çalıştırın.
 
-- **AUR** üzerinden kurulum yaptıysanız:
+---
+
+### 🪟 Windows
+
+Bu proje Linux için geliştirilmiştir. Windows kullanıcıları için [anitr-cli-windows](https://github.com/mstsecurity/anitr-cli-windows) forkunu kullanabilirsiniz.
+
+---
+
+## 🚀 Kullanım
+
 ```bash
-yay -Sy anitr-cli
+anitr-cli [bayraklar]
 ```
 
-- **Manuel** kurulum yaptıysanız:
-> Eğer manuel kurulum yaptıysanız, güncellemeleri manuel olarak yapmanız gerekmektedir.
+**Bayraklar:**
 
-### 🪟 Windows Kullanıcıları
+- `--disable-rpc` Discord Rich Presence özelliğini kapatır.
+- `--rofi` Rofi arayüzü ile başlatır.
+- `--rofi-flags <string>` Rofi için ek parametreler.
+- `--version` Sürüm bilgisini gösterir.
+- `-h, --help` Yardım menüsü.
 
-Bu proje Linux için geliştirilmiştir. **Windows kullanıcıları**, [anitr-cli-windows](https://github.com/mstsecurity/anitr-cli-windows) forkunu kullanabilirler:
+---
 
-> 🔗 [https://github.com/mstsecurity/anitr-cli-windows](https://github.com/mstsecurity/anitr-cli-windows)
+## 💡 Sorunlar & Katkı
 
-## 👾 Kullanım
+Her türlü hata, öneri veya katkı için [issue](https://github.com/xeyossr/anitr-cli/issues) açabilirsiniz. Katkılarınızı bekliyoruz!
 
-```bash
-💫 Terminalden Türkçe anime izleme aracı
+---
 
-Usage:
-  anitr-cli [flags]
+## 📜 Lisans
 
-Flags:
-      --disable-rpc         Discord Rich Presence özelliğini devre dışı bırakır.
-  -h, --help                help for anitr-cli
-      --rofi                Rofi arayüzü ile başlatır.
-      --rofi-flags string   Rofi için flag'ler
-      --version             Versiyon bilgisi.
-```
-
-## 🚩 Sorunlar ve Katkı
-
-Herhangi bir hata veya geliştirme öneriniz için lütfen bir [**issue**](https://github.com/xeyossr/anitr-cli/issue) açın.
-
-## 📄 Lisans
-
-Bu proje [GNU GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html) lisansı ile lisanslanmıştır. Yazılımı bu lisansın koşulları altında kullanmakta, değiştirmekte ve dağıtmakta özgürsünüz. Daha fazla ayrıntı için lütfen [LICENSE](LICENSE) dosyasına bakın.
+Bu proje [GNU GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html) ile lisanslanmıştır. Detaylar için [LICENSE](LICENSE)
