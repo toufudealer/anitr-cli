@@ -38,7 +38,7 @@ func Play(params MPVParams) (*exec.Cmd, string, error) {
 		"--save-position-on-quit",
 		fmt.Sprintf("--title=%s", params.Title),
 		fmt.Sprintf("--force-media-title=%s", params.Title),
-		"--idle=yes", "--really-quiet", "--no-terminal",
+		"--idle=once", "--really-quiet", "--no-terminal",
 		fmt.Sprintf("--input-ipc-server=%s", mpvSocketPath),
 	}
 
