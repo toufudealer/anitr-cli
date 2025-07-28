@@ -29,12 +29,13 @@ import (
 func updateWatchApi(
 	source string,
 	episodeData []models.Episode,
-	index, id, seasonIndex int,
+	index, id, seasonIndex, selectedFansubIndex int,
 	isMovie bool,
 	slug *string,
-) (map[string]interface{}, error) {
+) (map[string]interface{}, []models.Fansub, error) {
 	var (
 		captionData []map[string]string
+		fansubData  []models.Fansub
 		captionUrl  string
 		err         error
 	)
@@ -44,13 +45,13 @@ func updateWatchApi(
 		if isMovie {
 			data, err := animecix.AnimeMovieWatchApiUrl(id)
 			if err != nil {
-				return nil, fmt.Errorf("animecix watch api url alınamadı: %w", err)
+				return nil, nil, fmt.Errorf("animecix watch api url alınamadı: %w", err)
 			}
 			captionUrlIface := data["caption_url"]
 			captionUrl, _ = captionUrlIface.(string)
 			streamsIface, ok := data["video_streams"]
 			if !ok {
-				return nil, fmt.Errorf("video_streams bulunamadı")
+				return nil, nil, fmt.Errorf("video_streams bulunamadı")
 			}
 			rawStreams, _ := streamsIface.([]interface{})
 			for _, streamIface := range rawStreams {
@@ -61,12 +62,12 @@ func updateWatchApi(
 			}
 		} else {
 			if index < 0 || index >= len(episodeData) {
-				return nil, fmt.Errorf("index out of range")
+				return nil, nil, fmt.Errorf("index out of range")
 			}
 			urlData := episodeData[index].ID
 			captionData, err = animecix.AnimeWatchApiUrl(urlData)
 			if err != nil {
-				return nil, fmt.Errorf("animecix watch api url alınamadı: %w", err)
+				return nil, nil, fmt.Errorf("animecix watch api url alınamadı: %w", err)
 			}
 			seasonEpisodeIndex := 0
 			for i := 0; i < index; i++ {
@@ -87,10 +88,10 @@ func updateWatchApi(
 		}
 	case "openanime":
 		if slug == nil {
-			return nil, fmt.Errorf("slug gerekli")
+			return nil, nil, fmt.Errorf("slug gerekli")
 		}
 		if index < 0 || index >= len(episodeData) {
-			return nil, fmt.Errorf("index out of range")
+			return nil, nil, fmt.Errorf("index out of range")
 		}
 		ep := episodeData[index]
 		seasonNum := 0
@@ -100,7 +101,7 @@ func updateWatchApi(
 		} else if snf, ok := ep.Extra["season_num"].(float64); ok {
 			seasonNum = int(snf)
 		} else {
-			return nil, fmt.Errorf("season_num geçersiz veya eksik")
+			return nil, nil, fmt.Errorf("season_num geçersiz veya eksik")
 		}
 		if en, ok := ep.Extra["episode_num"].(int); ok {
 			episodeNum = en
@@ -109,18 +110,39 @@ func updateWatchApi(
 		} else {
 			episodeNum = ep.Number
 		}
+
+		fansubParams := models.FansubParams{
+			Slug:       slug,
+			SeasonNum:  &seasonNum,
+			EpisodeNum: &episodeNum,
+		}
+
+		fansubData, err = openanime.OpenAnime{}.GetFansubsData(fansubParams)
+		if err != nil {
+			return nil, nil, fmt.Errorf("openanime fansub data alınamadı: %w", err)
+		}
+
+		if selectedFansubIndex < 0 || selectedFansubIndex >= len(fansubData) {
+			return nil, nil, fmt.Errorf("seçilen fansub indeksi geçersiz")
+		}
+
 		watchParams := models.WatchParams{
 			Slug:    slug,
 			Id:      &id,
 			IsMovie: &isMovie,
-			Extra:   &map[string]interface{}{"season_num": seasonNum, "episode_num": episodeNum},
+			Extra: &map[string]interface{}{
+				"season_num":         seasonNum,
+				"episode_num":        episodeNum,
+				"fansubs":            fansubData,
+				"selected_fansub_id": selectedFansubIndex,
+			},
 		}
 		watches, err := openanime.OpenAnime{}.GetWatchData(watchParams)
 		if err != nil {
-			return nil, fmt.Errorf("openanime watch data alınamadı: %w", err)
+			return nil, nil, fmt.Errorf("openanime watch data alınamadı: %w", err)
 		}
 		if len(watches) < 1 {
-			return nil, fmt.Errorf("openanime watch data boş")
+			return nil, nil, fmt.Errorf("openanime watch data boş")
 		}
 		w := watches[0]
 		captionData = make([]map[string]string, len(w.Labels))
@@ -134,7 +156,7 @@ func updateWatchApi(
 			captionUrl = *w.TRCaption
 		}
 	default:
-		return nil, fmt.Errorf("geçersiz kaynak: %s", source)
+		return nil, nil, fmt.Errorf("geçersiz kaynak: %s", source)
 	}
 	sort.Slice(captionData, func(i, j int) bool {
 		labelI := strings.TrimRight(captionData[i]["label"], "p")
@@ -153,7 +175,7 @@ func updateWatchApi(
 		"labels":      labels,
 		"urls":        urls,
 		"caption_url": captionUrl,
-	}, nil
+	}, fansubData, nil
 }
 
 // --- UI ve kullanıcı etkileşimi fonksiyonları ---
@@ -298,6 +320,7 @@ func playAnimeLoop(
 	logger *utils.Logger,
 ) {
 	selectedEpisodeIndex := 0
+	selectedFansubIdx := 0
 	selectedResolution := ""
 	selectedResolutionIdx := 0
 	loggedIn, err := rpc.ClientLogin()
@@ -306,10 +329,19 @@ func playAnimeLoop(
 	}
 	for {
 		ui.ClearScreen()
-		watchMenu := []string{"İzle", "Çözünürlük seç", "Çık"}
+		watchMenu := []string{}
 		if !isMovie {
-			watchMenu = append([]string{"Sonraki bölüm", "Önceki bölüm", "Bölüm seç"}, watchMenu...)
+			watchMenu = append(watchMenu, "İzle", "Sonraki bölüm", "Önceki bölüm", "Bölüm seç", "Çözünürlük seç")
+		} else {
+			watchMenu = append(watchMenu, "İzle", "Çözünürlük seç")
 		}
+
+		if strings.ToLower(selectedSource) == "openanime" {
+			watchMenu = append(watchMenu, "Fansub seç")
+		}
+
+		watchMenu = append(watchMenu, "Çık")
+
 		option, err := ui.SelectionList(internal.UiParams{
 			Mode:      uiMode,
 			RofiFlags: &rofiFlags,
@@ -334,12 +366,13 @@ func playAnimeLoop(
 				selectedEpisodeIndex--
 			}
 			selectedSeasonIndex = int(episodes[selectedEpisodeIndex].Extra["season_num"].(float64)) - 1
-			data, err := updateWatchApi(
+			data, _, err := updateWatchApi(
 				strings.ToLower(selectedSource),
 				episodes,
 				selectedEpisodeIndex,
 				selectedAnimeID,
 				selectedSeasonIndex,
+				selectedFansubIdx,
 				isMovie,
 				&selectedAnimeSlug,
 			)
@@ -358,6 +391,7 @@ func playAnimeLoop(
 			if selectedResolutionIdx >= len(urls) {
 				selectedResolutionIdx = len(urls) - 1
 			}
+
 			cmd, socketPath, err := player.Play(player.MPVParams{
 				Url:         urls[selectedResolutionIdx],
 				SubtitleUrl: &subtitle,
@@ -387,12 +421,13 @@ func playAnimeLoop(
 				fmt.Println("MPV çalışırken hata:", err)
 			}
 		case "Çözünürlük seç":
-			data, err := updateWatchApi(
+			data, _, err := updateWatchApi(
 				strings.ToLower(selectedSource),
 				episodes,
 				selectedEpisodeIndex,
 				selectedAnimeID,
 				selectedSeasonIndex,
+				selectedFansubIdx,
 				isMovie,
 				&selectedAnimeSlug,
 			)
@@ -426,12 +461,62 @@ func playAnimeLoop(
 			if !utils.CheckErr(err, logger) {
 				continue
 			}
-			if selected != "" {
+			if slices.Contains(episodeNames, selected) {
 				selectedEpisodeIndex = slices.Index(episodeNames, selected)
 				if !isMovie && selectedEpisodeIndex >= 0 && selectedEpisodeIndex < len(episodes) {
 					selectedSeasonIndex = int(episodes[selectedEpisodeIndex].Extra["season_num"].(float64)) - 1
 				}
+			} else {
+				continue
 			}
+		case "Fansub seç":
+			fansubNames := []string{}
+
+			if strings.ToLower(source.Source()) != "openanime" {
+				fmt.Println("\033[31m[!] Bu seçenek sadece OpenAnime için geçerlidir.\033[0m")
+				time.Sleep(1500 * time.Millisecond)
+				continue
+			}
+
+			_, fansubData, err := updateWatchApi(
+				strings.ToLower(selectedSource),
+				episodes,
+				selectedEpisodeIndex,
+				selectedAnimeID,
+				selectedSeasonIndex,
+				selectedFansubIdx,
+				isMovie,
+				&selectedAnimeSlug,
+			)
+
+			if err != nil {
+				logger.LogError(fmt.Errorf("updateWatchApi verisi alınamadı: %w", err))
+				continue
+			}
+
+			for _, fansub := range fansubData {
+				if fansub.Name != nil {
+					fansubNames = append(fansubNames, *fansub.Name)
+				}
+			}
+
+			selected, err := ui.SelectionList(internal.UiParams{
+				Mode:      uiMode,
+				RofiFlags: &rofiFlags,
+				List:      &fansubNames,
+				Label:     "Fansub seç ",
+			})
+			if !utils.CheckErr(err, logger) {
+				continue
+			}
+
+			if !slices.Contains(fansubNames, selected) {
+				fmt.Printf("\033[31m[!] Geçersiz fansub seçimi: %s\033[0m\n", selected)
+				time.Sleep(1500 * time.Millisecond)
+				continue
+			}
+			selectedFansubIdx = slices.Index(fansubNames, selected)
+
 		case "Çık":
 			return
 		default:
