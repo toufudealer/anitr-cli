@@ -6,8 +6,11 @@
 <img src="https://raw.githubusercontent.com/xeyossr/anitr-cli/main/assets/anitr-preview.gif" alt="anitr-cli preview" width="600"/>
 
 <p>
-  
-  [![Github](https://img.shields.io/github/v/release/xeyossr/anitr-cli?style=for-the-badge&include_prereleases&label=GitHub%20Sürüm)](https://github.com/xeyossr/anitr-cli/releases) [![AUR](https://img.shields.io/aur/version/anitr-cli?style=for-the-badge&label=AUR)](https://aur.archlinux.org/packages/anitr-cli) [![Windows](https://img.shields.io/github/v/release/mstsecurity/anitr-cli-windows?include_prereleases&label=Windows%20Fork&style=for-the-badge)](https://github.com/mstsecurity/anitr-cli-windows)
+
+[![Lisans: GPL3](https://img.shields.io/github/license/xeyossr/anitr-cli?style=for-the-badge&logo=opensourceinitiative&logoColor=white&label=Lisans)](https://github.com/xeyossr/anitr-cli/blob/main/LICENSE)
+[![Go Versiyon](https://img.shields.io/badge/Go-1.24+-blue?style=for-the-badge&logo=go&logoColor=white)](https://golang.org/dl/)
+[![Release](https://img.shields.io/github/v/release/xeyossr/anitr-cli?style=for-the-badge&logo=github&logoColor=white&label=Son%20Sürüm)](https://github.com/xeyossr/anitr-cli/releases/latest)
+[![AUR](https://img.shields.io/aur/version/anitr-cli?style=for-the-badge&logo=archlinux&logoColor=white&label=AUR)](https://aur.archlinux.org/packages/anitr-cli)
     
 </p>
 
