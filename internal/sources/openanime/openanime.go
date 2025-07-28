@@ -142,6 +142,60 @@ func (o OpenAnime) GetEpisodesData(params models.EpisodeParams) ([]models.Episod
 	return episodes, nil
 }
 
+func (o OpenAnime) GetFansubsData(params models.FansubParams) ([]models.Fansub, error) {
+	if params.Slug == nil || params.SeasonNum == nil || params.EpisodeNum == nil {
+		return nil, fmt.Errorf("slug, sezon numarası veya bölüm numarası eksik")
+	}
+
+	slug := *params.Slug
+	seasonNum := *params.SeasonNum
+	episodeNum := *params.EpisodeNum
+
+	url := fmt.Sprintf("%s/anime/%s/season/%d/episode/%d", configOpenAnime.BaseUrl, slug, seasonNum, episodeNum)
+	data, err := internal.GetJson(url, configOpenAnime.HttpHeaders)
+	if err != nil {
+		return nil, fmt.Errorf("fansub verileri alınamadı: %w", err)
+	}
+
+	rawFansubs, ok := data.(map[string]interface{})["fansubs"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("fansubs verisi eksik veya hatalı")
+	}
+
+	var fansubs []models.Fansub
+	for _, f := range rawFansubs {
+		fm, ok := f.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		is4K, ok := fm["is4K"].(bool)
+		if !ok || is4K {
+			continue
+		}
+
+		id, idOK := fm["id"].(string)
+		name, nameOK := fm["name"].(string)
+		secureName, secureOK := fm["secureName"].(string)
+
+		if !idOK || !nameOK || !secureOK {
+			return nil, fmt.Errorf("fansub bilgisi eksik: %+v", fm)
+		}
+
+		fansubs = append(fansubs, models.Fansub{
+			ID:         &id,
+			Name:       &name,
+			SecureName: &secureName,
+		})
+	}
+
+	if len(fansubs) == 0 {
+		return nil, fmt.Errorf("geçerli fansub bulunamadı")
+	}
+
+	return fansubs, nil
+}
+
 func (o OpenAnime) GetWatchData(req models.WatchParams) ([]models.Watch, error) {
 	if req.Slug == nil || req.Extra == nil {
 		return nil, fmt.Errorf("slug veya ekstra bilgiler eksik")
@@ -161,54 +215,12 @@ func (o OpenAnime) GetWatchData(req models.WatchParams) ([]models.Watch, error) 
 	}
 
 	baseURL := fmt.Sprintf("%s/anime/%s/season/%d/episode/%d", configOpenAnime.BaseUrl, slug, int(seasonNum), int(episodeNum))
-	data, err := internal.GetJson(baseURL, configOpenAnime.HttpHeaders)
-	if err != nil {
-		return nil, fmt.Errorf("bölüm verisi alınamadı: %w", err)
-	}
 
-	// FANSUBS
-	rawFansubs, ok := data.(map[string]interface{})["fansubs"].([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("altyazılar bulunamadı veya beklenen formatta değil")
-	}
+	fansubs := extra["fansubs"].([]models.Fansub)
+	selectedFansubId := extra["selected_fansub_id"].(int)
 
-	var fansubs []map[string]string
-	for _, f := range rawFansubs {
-		fm, ok := f.(map[string]interface{})
-		if !ok {
-			continue
-		}
-
-		is4K, ok := fm["is4K"].(bool)
-		if !ok {
-			return nil, fmt.Errorf("altyazı 'is4K' bilgisi eksik")
-		}
-		if is4K {
-			continue
-		}
-
-		id, idOK := fm["id"].(string)
-		name, nameOK := fm["name"].(string)
-		secureName, secureOK := fm["secureName"].(string)
-
-		if !idOK || !nameOK || !secureOK {
-			return nil, fmt.Errorf("altyazı bilgisi eksik: %+v", fm)
-		}
-
-		fansubs = append(fansubs, map[string]string{
-			"id":         id,
-			"name":       name,
-			"secureName": secureName,
-		})
-	}
-
-	if len(fansubs) == 0 {
-		return nil, fmt.Errorf("geçerli altyazı bulunamadı (yalnızca 4K olabilir)")
-	}
-
-	// GET VIDEO STREAMS
-	videoURL := fmt.Sprintf("%s?fansub=%s", baseURL, fansubs[0]["id"])
-	data, err = internal.GetJson(videoURL, configOpenAnime.HttpHeaders)
+	videoURL := fmt.Sprintf("%s?fansub=%s", baseURL, *fansubs[selectedFansubId].ID)
+	data, err := internal.GetJson(videoURL, configOpenAnime.HttpHeaders)
 	if err != nil {
 		return nil, fmt.Errorf("video bağlantıları alınamadı: %w", err)
 	}
