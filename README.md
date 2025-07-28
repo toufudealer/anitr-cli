@@ -3,18 +3,12 @@
 <h1>anitr-cli</h1>
 <h3>Terminalde Türkçe altyazılı anime izleme ve arama aracı 🚀</h3>
 
-<img src="https://raw.githubusercontent.com/xeyossr/anitr-cli/main/assets/anitr-preview.gif" alt="anitr-cli preview" width="300"/>
+<img src="https://raw.githubusercontent.com/xeyossr/anitr-cli/main/assets/anitr-preview.gif" alt="anitr-cli preview" width="600"/>
 
 <p>
-  <a href="https://github.com/xeyossr/anitr-cli/releases">
-    <img src="https://img.shields.io/github/v/release/xeyossr/anitr-cli?style=for-the-badge&include_prereleases&label=GitHub%20Sürüm">
-  </a>
-  <a href="https://aur.archlinux.org/packages/anitr-cli">
-    <img src="https://img.shields.io/aur/version/anitr-cli?style=for-the-badge&label=AUR">
-  </a>
-  <a href="https://github.com/mstsecurity/anitr-cli-windows">
-    <img src="https://img.shields.io/github/v/release/mstsecurity/anitr-cli-windows?include_prereleases&label=Windows%20Fork&style=for-the-badge">
-  </a>
+  
+  [![Github](https://img.shields.io/github/v/release/xeyossr/anitr-cli?style=for-the-badge&include_prereleases&label=GitHub%20Sürüm)](https://github.com/xeyossr/anitr-cli/releases) [![AUR](https://img.shields.io/aur/version/anitr-cli?style=for-the-badge&label=AUR)](https://aur.archlinux.org/packages/anitr-cli) [![Windows](https://img.shields.io/github/v/release/mstsecurity/anitr-cli-windows?include_prereleases&label=Windows%20Fork&style=for-the-badge)](https://github.com/mstsecurity/anitr-cli-windows)
+    
 </p>
 
 </div>
