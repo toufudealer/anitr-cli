@@ -31,8 +31,10 @@ func fetchApi(url string) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("API'den veri okunamadı: %w", err)
 	}
-	json.Unmarshal(respBody, &result)
-	return result, fmt.Errorf("API'den veri alınamadı: %w", err)
+	if err = json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("API'den veri ayrıştırma başarısız: %w", err)
+	}
+	return result, nil
 }
 
 func FetchUpdates() (msg string, err error) {
