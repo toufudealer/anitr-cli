@@ -33,12 +33,25 @@ type Episode struct {
 	Extra  map[string]interface{}
 }
 
+type Fansub struct {
+	ID         *string
+	Name       *string
+	SecureName *string
+}
+
 type WatchParams struct {
 	Slug    *string
 	Url     *string
 	Id      *int
 	IsMovie *bool
 	Extra   *map[string]interface{}
+}
+
+type FansubParams struct {
+	Slug       *string
+	Id         *int
+	SeasonNum  *int
+	EpisodeNum *int
 }
 
 type SeasonParams struct {
