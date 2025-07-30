@@ -616,6 +616,33 @@ func updateDiscordRPC(socketPath string, episodeNames []string, selectedEpisodeI
 
 // --- Uygulama ana akışı ---
 
+func runMain(f *flags.Flags, uiMode string, logger *utils.Logger) {
+	disableRpc := f.DisableRPC
+	printVersion := f.PrintVersion
+	rofiFlags := f.RofiFlags
+
+	if printVersion {
+		update.Version()
+		return
+	}
+
+	update.CheckUpdates()
+	selectedSource, source := selectSource(uiMode, rofiFlags, logger)
+
+	for {
+		searchData, animeNames, animeTypes, _ := searchAnime(source, uiMode, rofiFlags, logger)
+		isMovie := false
+		selectedAnime, isMovie, _ := selectAnime(animeNames, searchData, uiMode, isMovie, rofiFlags, animeTypes, logger)
+		posterUrl := selectedAnime.ImageURL
+		if !utils.IsValidImage(posterUrl) {
+			posterUrl = "anitrcli"
+		}
+		selectedAnimeID, selectedAnimeSlug := getAnimeIDs(source, selectedAnime)
+		episodes, episodeNames, isMovie, selectedSeasonIndex := getEpisodesAndNames(source, isMovie, selectedAnimeID, selectedAnimeSlug, selectedAnime.Title, logger)
+		source, selectedSource = playAnimeLoop(source, selectedSource, episodes, episodeNames, selectedAnimeID, selectedAnimeSlug, selectedAnime.Title, isMovie, selectedSeasonIndex, uiMode, rofiFlags, posterUrl, disableRpc, logger)
+	}
+}
+
 func runApp() {
 	logger, err := utils.NewLogger()
 	if err != nil {
@@ -623,36 +650,29 @@ func runApp() {
 	}
 	defer logger.Close()
 	log.SetFlags(0)
-	uiMode := "tui"
-	rootCmd, f := flags.NewFlagsCmd()
-	rootCmd.Run = func(cmd *cobra.Command, args []string) {
-		disableRpc := f.DisableRPC
-		printVersion := f.PrintVersion
-		rofiMode := f.RofiMode
-		rofiFlags := f.RofiFlags
-		if printVersion {
-			update.Version()
-			return
-		}
-		if rofiMode {
-			uiMode = "rofi"
-		}
-		update.CheckUpdates()
-		selectedSource, source := selectSource(uiMode, rofiFlags, logger)
 
-		for {
-			searchData, animeNames, animeTypes, _ := searchAnime(source, uiMode, rofiFlags, logger)
-			isMovie := false
-			selectedAnime, isMovie, _ := selectAnime(animeNames, searchData, uiMode, isMovie, rofiFlags, animeTypes, logger)
-			posterUrl := selectedAnime.ImageURL
-			if !utils.IsValidImage(posterUrl) {
-				posterUrl = "anitrcli"
-			}
-			selectedAnimeID, selectedAnimeSlug := getAnimeIDs(source, selectedAnime)
-			episodes, episodeNames, isMovie, selectedSeasonIndex := getEpisodesAndNames(source, isMovie, selectedAnimeID, selectedAnimeSlug, selectedAnime.Title, logger)
-			source, selectedSource = playAnimeLoop(source, selectedSource, episodes, episodeNames, selectedAnimeID, selectedAnimeSlug, selectedAnime.Title, isMovie, selectedSeasonIndex, uiMode, rofiFlags, posterUrl, disableRpc, logger)
-		}
+	rootCmd, f := flags.NewFlagsCmd()
+
+	// rofi alt komutu
+	rofiCmd, _ := rootCmd.Commands()[0], f // varsayım: ilk alt komut rofiCmd
+	rofiCmd.Run = func(cmd *cobra.Command, args []string) {
+		f.RofiMode = true
+		runMain(f, "rofi", logger)
 	}
+
+	// tui alt komutu
+	tuiCmd, _ := rootCmd.Commands()[1], f // varsayım: ikinci alt komut tuiCmd
+	tuiCmd.Run = func(cmd *cobra.Command, args []string) {
+		f.RofiMode = false
+		runMain(f, "tui", logger)
+	}
+
+	// root komut çalıştırılırsa, default tui modu çalışsın
+	rootCmd.Run = func(cmd *cobra.Command, args []string) {
+		f.RofiMode = false
+		runMain(f, "tui", logger)
+	}
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
