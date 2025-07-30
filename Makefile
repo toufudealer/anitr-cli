@@ -3,14 +3,18 @@ BINARY_NAME=anitr-cli
 BUILD_DIR=./build
 INSTALL_DIR=/usr/bin
 
+VERSION ?= $(shell git describe --tags --abbrev=0 2>/dev/null || echo "dev")
+
+LDFLAGS=-ldflags="-X 'github.com/xeyossr/anitr-cli/internal/update.CurrentVersion=$(VERSION)'"
+
 mod-tidy:
 	$(GO) mod tidy
 
 build: mod-tidy
-	$(GO) build -o $(BUILD_DIR)/$(BINARY_NAME)
+	$(GO) build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)
 
 run: build
-	./$(BINARY_NAME)
+	./$(BUILD_DIR)/$(BINARY_NAME)
 
 install: build
 	chmod +x $(BUILD_DIR)/$(BINARY_NAME)
