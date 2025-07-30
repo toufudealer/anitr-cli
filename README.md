@@ -99,24 +99,18 @@ make install
 anitr-cli [alt komut] [bayraklar]
 ```
 
-### Bayraklar
-- `--disable-rpc`  
-  Discord Rich Presence özelliğini kapatır.
-- `--version`, `-v`  
-  Sürüm bilgisini gösterir.
-- `--help`, `-h`  
-  Yardım menüsünü gösterir.
-- `--rofi`  
-  **[Kullanımdan kaldırıldı]** Yerine `rofi` alt komutunu kullanın.
+Bayraklar:
+  `--disable-rpc`         Discord Rich Presence özelliğini kapatır
+  `--version`, `-v`       Sürüm bilgisini gösterir
+  `--help`, `-h`          Yardım menüsünü gösterir
+  `--rofi`                [Kullanımdan kaldırıldı] Yerine 'rofi' alt komutunu kullanın
 
-### Alt Komutlar
-- `rofi`  
-  Rofi arayüzü ile başlatır.  
-  - `-f`, `--rofi-flags`  
-    Rofi’ye özel parametreler (örn: `--rofi-flags="-theme mytheme"`).
+Alt komutlar:
+  `rofi`                  Rofi arayüzü ile başlatır
+    `-f`, `--rofi-flags`  Rofi’ye özel parametreler (örn: --rofi-flags="-theme mytheme")
+  `tui`                   Terminal arayüzü ile başlatır
 
-- `tui`  
-  Terminal arayüzü ile başlatır.
+---
 
 ## 💡 Sorunlar & Katkı
 
