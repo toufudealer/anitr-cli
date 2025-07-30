@@ -318,7 +318,7 @@ func playAnimeLoop(
 	posterUrl string,
 	disableRpc bool,
 	logger *utils.Logger,
-) {
+) (models.AnimeSource, string) {
 	selectedEpisodeIndex := 0
 	selectedFansubIdx := 0
 	selectedResolution := ""
@@ -340,7 +340,7 @@ func playAnimeLoop(
 			watchMenu = append(watchMenu, "Fansub seç")
 		}
 
-		watchMenu = append(watchMenu, "Çık")
+		watchMenu = append(watchMenu, "Anime ara", "Çık")
 
 		option, err := ui.SelectionList(internal.UiParams{
 			Mode:      uiMode,
@@ -398,7 +398,7 @@ func playAnimeLoop(
 				Title:       fmt.Sprintf("%s - %s", selectedAnimeName, episodeNames[selectedEpisodeIndex]),
 			})
 			if !utils.CheckErr(err, logger) {
-				return
+				return source, selectedSource
 			}
 			maxAttempts := 10
 			mpvRunning := false
@@ -411,7 +411,7 @@ func playAnimeLoop(
 			}
 			if !mpvRunning {
 				logger.LogError(errors.New("MPV başlatılamadı veya zamanında yanıt vermedi"))
-				return
+				return source, selectedSource
 			}
 			if !disableRpc {
 				go updateDiscordRPC(socketPath, episodeNames, selectedEpisodeIndex, selectedAnimeName, selectedSource, posterUrl, logger, &loggedIn)
@@ -517,10 +517,39 @@ func playAnimeLoop(
 			}
 			selectedFansubIdx = slices.Index(fansubNames, selected)
 
+		case "Anime ara":
+			for {
+				choice, err := ui.SelectionList(internal.UiParams{
+					Mode:      uiMode,
+					RofiFlags: &rofiFlags,
+					List:      &[]string{"Bu kaynakla devam et", "Kaynak değiştir", "Çık"},
+					Label:     fmt.Sprintf("Arama kaynağı: %s", selectedSource),
+				})
+
+				if err != nil {
+					logger.LogError(fmt.Errorf("seçim listesi oluşturulamadı: %w", err))
+					continue
+				}
+
+				switch choice {
+				case "Bu kaynakla devam et":
+					// Devam et, hiçbir şey yapma
+				case "Kaynak değiştir":
+					selectedSource, source = selectSource(uiMode, rofiFlags, logger)
+				case "Çık":
+					os.Exit(0)
+				default:
+					fmt.Printf("\033[31m[!] Geçersiz seçim: %s\033[0m\n", choice)
+					time.Sleep(1500 * time.Millisecond)
+					continue
+				}
+
+				return source, selectedSource
+			}
 		case "Çık":
-			return
+			os.Exit(0)
 		default:
-			return
+			return source, selectedSource
 		}
 	}
 }
@@ -610,16 +639,19 @@ func runApp() {
 		}
 		update.CheckUpdates()
 		selectedSource, source := selectSource(uiMode, rofiFlags, logger)
-		searchData, animeNames, animeTypes, _ := searchAnime(source, uiMode, rofiFlags, logger)
-		isMovie := false
-		selectedAnime, isMovie, _ := selectAnime(animeNames, searchData, uiMode, isMovie, rofiFlags, animeTypes, logger)
-		posterUrl := selectedAnime.ImageURL
-		if !utils.IsValidImage(posterUrl) {
-			posterUrl = "anitrcli"
+
+		for {
+			searchData, animeNames, animeTypes, _ := searchAnime(source, uiMode, rofiFlags, logger)
+			isMovie := false
+			selectedAnime, isMovie, _ := selectAnime(animeNames, searchData, uiMode, isMovie, rofiFlags, animeTypes, logger)
+			posterUrl := selectedAnime.ImageURL
+			if !utils.IsValidImage(posterUrl) {
+				posterUrl = "anitrcli"
+			}
+			selectedAnimeID, selectedAnimeSlug := getAnimeIDs(source, selectedAnime)
+			episodes, episodeNames, isMovie, selectedSeasonIndex := getEpisodesAndNames(source, isMovie, selectedAnimeID, selectedAnimeSlug, selectedAnime.Title, logger)
+			source, selectedSource = playAnimeLoop(source, selectedSource, episodes, episodeNames, selectedAnimeID, selectedAnimeSlug, selectedAnime.Title, isMovie, selectedSeasonIndex, uiMode, rofiFlags, posterUrl, disableRpc, logger)
 		}
-		selectedAnimeID, selectedAnimeSlug := getAnimeIDs(source, selectedAnime)
-		episodes, episodeNames, isMovie, selectedSeasonIndex := getEpisodesAndNames(source, isMovie, selectedAnimeID, selectedAnimeSlug, selectedAnime.Title, logger)
-		playAnimeLoop(source, selectedSource, episodes, episodeNames, selectedAnimeID, selectedAnimeSlug, selectedAnime.Title, isMovie, selectedSeasonIndex, uiMode, rofiFlags, posterUrl, disableRpc, logger)
 	}
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

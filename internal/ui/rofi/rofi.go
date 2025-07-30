@@ -22,10 +22,10 @@ func isRofiExist() error {
 func SelectionList(params internal.UiParams) (string, error) {
 	err := isRofiExist()
 	if err != nil {
-		return "", errors.New("-rofi modunun çalışması için rofi'nin sisteminize yüklü olması gerekmektedir")
+		return "", errors.New("rofi modunun çalışması için rofi'nin sisteminize yüklü olması gerekmektedir")
 	}
 
-	args := []string{"-dmenu", "-p", params.Label}
+	args := []string{"-dmenu", "-p", "anitr-cli", "-mesg", params.Label}
 
 	if params.RofiFlags != nil {
 		flags := strings.Split(*params.RofiFlags, " ")
@@ -52,10 +52,10 @@ func SelectionList(params internal.UiParams) (string, error) {
 func InputFromUser(params internal.UiParams) (string, error) {
 	err := isRofiExist()
 	if err != nil {
-		return "", errors.New("-rofi modunun çalışması için rofi'nin sisteminize yüklü olması gerekmektedir")
+		return "", errors.New("rofi modunun çalışması için rofi'nin sisteminize yüklü olması gerekmektedir")
 	}
 
-	args := []string{"-dmenu", "-p", params.Label}
+	args := []string{"-dmenu", "-p", "anitr-cli", "-mesg", params.Label}
 
 	if params.RofiFlags != nil {
 		flags := strings.Split(*params.RofiFlags, " ")

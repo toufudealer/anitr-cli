@@ -6,7 +6,7 @@
 <img src="https://raw.githubusercontent.com/xeyossr/anitr-cli/main/assets/anitr-preview.gif" alt="anitr-cli preview" width="600"/>
 
 <p>
-
+  
 [![Lisans: GPL3](https://img.shields.io/github/license/xeyossr/anitr-cli?style=for-the-badge&logo=opensourceinitiative&logoColor=white&label=Lisans)](https://github.com/xeyossr/anitr-cli/blob/main/LICENSE)
 [![Go Versiyon](https://img.shields.io/badge/Go-1.24+-blue?style=for-the-badge&logo=go&logoColor=white)](https://golang.org/dl/)
 [![Release](https://img.shields.io/github/v/release/xeyossr/anitr-cli?style=for-the-badge&logo=github&logoColor=white&label=Son%20Sürüm)](https://github.com/xeyossr/anitr-cli/releases/latest)
@@ -23,26 +23,33 @@
 - **AnimeCix ve OpenAnime Entegrasyonu**: Popüler anime platformlarından hızlı arama ve izleme imkanı.
 - **Fansub Seçimi**: OpenAnime üzerinden izlerken favori çeviri grubunuzu seçme özgürlüğü.
 - **Çoklu Arayüz Desteği**: Terminal tabanlı TUI ve minimalist grafik arayüz (Rofi UI) seçenekleri.
-- **Discord Rich Presence**: İzlediğiniz animeyi Discord profilinizde paylaşarak arkadaşlarınızla etkileşimde kalın.
+- **Discord Rich Presence**: İzlediğiniz animeyi Discord profilinizde paylaşın.
 - **Otomatik Güncelleme Kontrolü**: Uygulama her başlatıldığında yeni sürüm olup olmadığını kontrol eder.
 
 ---
 
 ## ⚡ Kurulum
 
-### 🐧 Linux
-
-#### Arch tabanlı dağıtımlar (AUR):
+### 🐧 Arch tabanlı dağıtımlar (AUR):
 
 ```bash
 yay -S anitr-cli
 ```
+ya da
+```bash
+paru -S anitr-cli
+```
 
-#### Diğer Linux dağıtımları:
+### 🐧 Diğer Linux dağıtımları:
 
 ```bash
+curl -sS https://raw.githubusercontent.com/xeyossr/anitr-cli/main/install.sh | bash
+```
+ya da
+```bash
 git clone https://github.com/xeyossr/anitr-cli.git
-cd anitr-cli
+cd anitr-cli  
+git fetch --tags
 make install
 ```
 
@@ -80,29 +87,29 @@ make install
   yay -Sy anitr-cli
   ```
 - **Manuel kurulum yaptıysanız:**  
-  Depoyu güncelleyip tekrar `make install` komutunu çalıştırın.
-
----
-
-### 🪟 Windows
-
-Bu proje Linux için geliştirilmiştir. Windows kullanıcıları için [anitr-cli-windows](https://github.com/mstsecurity/anitr-cli-windows) forkunu kullanabilirsiniz.
+  ```bash
+  curl -sS https://raw.githubusercontent.com/xeyossr/anitr-cli/main/install.sh | bash
+  ```
 
 ---
 
 ## 🚀 Kullanım
 
 ```bash
-anitr-cli [bayraklar]
+anitr-cli [alt komut] [bayraklar]
 ```
 
-**Bayraklar:**
+Bayraklar:
+  --disable-rpc         Discord Rich Presence özelliğini kapatır
+  --version, -v         Sürüm bilgisini gösterir
+  --help, -h            Yardım menüsünü gösterir
+  --rofi                [Kullanımdan kaldırıldı] Yerine 'rofi' alt komutunu kullanın
 
-- `--disable-rpc` Discord Rich Presence özelliğini kapatır.
-- `--rofi` Rofi arayüzü ile başlatır.
-- `--rofi-flags <string>` Rofi için ek parametreler.
-- `--version` Sürüm bilgisini gösterir.
-- `-h, --help` Yardım menüsü.
+Alt komutlar:
+  rofi                  Rofi arayüzü ile başlatır
+    -f, --rofi-flags    Rofi’ye özel parametreler (örn: --rofi-flags="-theme mytheme")
+  tui                   Terminal arayüzü ile başlatır
+``` 
 
 ---
 

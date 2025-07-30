@@ -21,8 +21,6 @@ var (
 	highlightColor   = "#e45cc0"
 	filterInputFg    = "#8bb27f"
 	filterCursorFg   = "#c4b48b"
-	titleFg          = "#c4b48b"
-	titleBg          = "#2a2c36"
 	inputPromptFg    = "#c4b48b"
 	inputTextFg      = "#aabbcc"
 	inputCursorFg    = "#c4b48b"
@@ -108,9 +106,6 @@ func NewSelectionListModel(params internal.UiParams) SelectionListModel {
 
 	titleStyle := lipgloss.NewStyle().
 		Align(lipgloss.Center).
-		Padding(0, 2).
-		Background(lipgloss.Color(titleBg)).
-		Foreground(lipgloss.Color(titleFg)).
 		Bold(true)
 
 	l.Title = titleStyle.Render(params.Label)
