@@ -45,7 +45,7 @@ if [[ "$HAS_MAKE" -eq 1 ]]; then
     fi
 else
     VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "dev")
-    go build -ldflags="-X 'github.com/xeyossr/anitr-cli/internal/update.CurrentVersion=$VERSION'" -o "$BINARY_NAME"
+    go build -o "$BINARY_NAME" -ldflags="-X 'github.com/xeyossr/anitr-cli/internal/update.version=$VERSION' -X 'github.com/xeyossr/anitr-cli/internal/update.buildEnv=$BUILDENV'"
     if [[ $EUID -ne 0 ]]; then
         sudo install -Dm755 "$BINARY_NAME" "$INSTALL_DIR/$BINARY_NAME"
     else

@@ -1,9 +1,12 @@
+// flags paketi, anitr-cli için komut satırı bayraklarını ve alt komutlarını tanımlar
 package flags
 
 import (
 	"github.com/spf13/cobra"
+	"github.com/xeyossr/anitr-cli/internal/update"
 )
 
+// CLI'de kullanılacak bayraklar burada tutulur
 type Flags struct {
 	DisableRPC   bool
 	PrintVersion bool
@@ -11,6 +14,7 @@ type Flags struct {
 	RofiFlags    string
 }
 
+// CLI komutunu ve ilgili bayrakları oluşturan fonksiyon
 func NewFlagsCmd() (*cobra.Command, *Flags) {
 	f := &Flags{}
 
@@ -25,13 +29,15 @@ func NewFlagsCmd() (*cobra.Command, *Flags) {
 		},
 	}
 
-	// Global flagler
+	// Global flag: Discord RPC devre dışı bırakmak için
 	cmd.PersistentFlags().BoolVar(&f.DisableRPC, "disable-rpc", false,
 		"Discord Rich Presence desteğini devre dışı bırakır.")
-	cmd.PersistentFlags().BoolVarP(&f.PrintVersion, "version", "v", false,
-		"Uygulamanın sürüm bilgisini yazdırır.")
 
-	// DEPRECATED: --rofi flag
+	// Versiyon bilgisi ayarlanıyor
+	cmd.SetVersionTemplate(update.Version())
+	cmd.Version = update.Version()
+
+	// Eski --rofi flag'i (artık kullanılmıyor)
 	cmd.PersistentFlags().BoolVarP(&f.RofiMode, "rofi", "r", false,
 		"[DEPRECATED] --rofi seçeneği kullanımdan kaldırıldı. Lütfen 'rofi' alt komutunu kullanın.")
 	_ = cmd.PersistentFlags().MarkDeprecated("rofi", "Bu bayrak artık kullanılmıyor. Yerine 'rofi' alt komutunu kullanın.")
@@ -50,6 +56,7 @@ func NewFlagsCmd() (*cobra.Command, *Flags) {
 		SilenceErrors: true,
 	}
 
+	// rofi alt komutu için ek parametre alma
 	rofiCmd.Flags().StringVarP(&f.RofiFlags, "rofi-flags", "f", "",
 		"Rofi'ye aktarılacak ek parametreler (örnek: --rofi-flags='-theme mytheme')")
 

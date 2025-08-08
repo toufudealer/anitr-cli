@@ -12,47 +12,56 @@ import (
 	"github.com/xeyossr/anitr-cli/internal/ipc"
 )
 
+// MPVParams yapısı, MPV oynatıcı parametrelerini tutar.
 type MPVParams struct {
-	Url         string
-	SubtitleUrl *string
-	Title       string
+	Url         string  // Oynatılacak video URL'si
+	SubtitleUrl *string // Altyazı URL'si (isteğe bağlı)
+	Title       string  // Video başlığı
 }
 
+// isMPVInstalled fonksiyonu, sistemde MPV oynatıcısının yüklü olup olmadığını kontrol eder.
 func isMPVInstalled() error {
-	_, err := exec.LookPath("mpv")
+	_, err := exec.LookPath("mpv") // MPV'nin sistemde bulunup bulunmadığını kontrol eder
 	return err
 }
 
+// Play fonksiyonu, verilen parametrelerle MPV oynatıcıyı başlatır.
 func Play(params MPVParams) (*exec.Cmd, string, error) {
 	mpvSocket := "anitr-cli-410.sock"
 	mpvSocketPath := filepath.Join("/tmp", mpvSocket)
 
+	// MPV'nin yüklü olup olmadığını kontrol et
 	if err := isMPVInstalled(); err != nil {
-		return nil, "", errors.New("mpv sisteminizde yüklü değil")
+		return nil, "", errors.New("mpv sisteminizde yüklü değil") // Yükleme hatası
 	}
 
+	// MPV başlatma komutunu oluştur
 	args := []string{
-		"--fullscreen",
+		"--fullscreen", // Tam ekran başlat
 		"--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/137.0.0.0 Safari/537.36",
 		"--referrer=https://yeshi.eu.org/",
-		"--save-position-on-quit",
-		fmt.Sprintf("--title=%s", params.Title),
-		fmt.Sprintf("--force-media-title=%s", params.Title),
+		"--save-position-on-quit",                           // Çıkıldığında konumu kaydet
+		fmt.Sprintf("--title=%s", params.Title),             // Başlık
+		fmt.Sprintf("--force-media-title=%s", params.Title), // Başlık zorlama
 		"--idle=once", "--really-quiet", "--no-terminal",
-		fmt.Sprintf("--input-ipc-server=%s", mpvSocketPath),
+		fmt.Sprintf("--input-ipc-server=%s", mpvSocketPath), // IPC soketi
 	}
 
+	// Eğer altyazı URL'si varsa, altyazı dosyasını ekle
 	if params.SubtitleUrl != nil && *params.SubtitleUrl != "" {
 		args = append(args, "--sub-file", *params.SubtitleUrl)
 	}
 
+	// Video URL'sini ekle
 	args = append(args, params.Url)
 
+	// MPV'yi başlat
 	cmd := exec.Command("mpv", args...)
 	if err := cmd.Start(); err != nil {
-		return cmd, "", err
+		return cmd, "", err // Başlatma hatası
 	}
 
+	// MPV'nin IPC soketini bekle
 	maxRetries := 25
 	retryDelay := 300 * time.Millisecond
 	for i := 0; i < maxRetries; i++ {
@@ -60,18 +69,20 @@ func Play(params MPVParams) (*exec.Cmd, string, error) {
 		conn, err := ipc.ConnectToPipe(mpvSocketPath)
 		if err == nil {
 			conn.Close()
-			return cmd, mpvSocketPath, nil
+			return cmd, mpvSocketPath, nil // Bağlantı başarılı
 		}
 	}
 
-	return cmd, "", errors.New("MPV socket hazır değil, başlatılamadı")
+	return cmd, "", errors.New("MPV socket hazır değil, başlatılamadı") // Socket hatası
 }
 
+// MPVSendCommand, MPV'ye bir komut gönderir ve yanıtını döner.
 func MPVSendCommand(ipcSocketPath string, command []interface{}) (interface{}, error) {
 	var lastErr error
 	maxRetries := 3
 	retryDelay := 100 * time.Millisecond
 
+	// Komutun gönderilmesini birkaç kez dener
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		if attempt > 0 {
 			time.Sleep(retryDelay)
@@ -84,6 +95,7 @@ func MPVSendCommand(ipcSocketPath string, command []interface{}) (interface{}, e
 		}
 		defer func() { _ = conn.Close() }()
 
+		// Komutu JSON formatına dönüştür
 		commandStr, err := json.Marshal(map[string]interface{}{
 			"command": command,
 		})
@@ -91,12 +103,14 @@ func MPVSendCommand(ipcSocketPath string, command []interface{}) (interface{}, e
 			return nil, err
 		}
 
+		// Komutu sokete gönder
 		_, err = conn.Write(append(commandStr, '\n'))
 		if err != nil {
 			lastErr = err
 			continue
 		}
 
+		// Yanıtı oku
 		buf := make([]byte, 4096)
 		if deadline, ok := conn.(interface{ SetReadDeadline(time.Time) error }); ok {
 			deadline.SetReadDeadline(time.Now().Add(1 * time.Second))
@@ -108,75 +122,82 @@ func MPVSendCommand(ipcSocketPath string, command []interface{}) (interface{}, e
 			continue
 		}
 
+		// Yanıtı çözümle
 		var response map[string]interface{}
 		if err := json.Unmarshal(buf[:n], &response); err != nil {
 			lastErr = err
 			continue
 		}
 
+		// Yanıt verisi varsa, döndür
 		if data, exists := response["data"]; exists {
 			return data, nil
 		}
 		return nil, nil
 	}
 
-	return nil, fmt.Errorf("command failed after %d attempts: %w", maxRetries, lastErr)
+	return nil, fmt.Errorf("command failed after %d attempts: %w", maxRetries, lastErr) // Komut hatası
 }
 
+// SeekMPV, MPV'yi belirli bir zaman noktasına kaydırır.
 func SeekMPV(ipcSocketPath string, time int) (interface{}, error) {
-	command := []interface{}{"seek", time, "absolute"}
+	command := []interface{}{"seek", time, "absolute"} // Mutlak zaman noktasına kaydır
 	return MPVSendCommand(ipcSocketPath, command)
 }
 
+// GetMPVPausedStatus, MPV'nin duraklatılıp duraklatılmadığını kontrol eder.
 func GetMPVPausedStatus(ipcSocketPath string) (bool, error) {
 	status, err := MPVSendCommand(ipcSocketPath, []interface{}{"get_property", "pause"})
 	if err != nil || status == nil {
-		return false, err
+		return false, err // Durum hatası
 	}
 
 	paused, ok := status.(bool)
 	if ok {
-		return paused, nil
+		return paused, nil // Duraklatma durumu
 	}
 	return false, nil
 }
 
+// GetMPVPlaybackSpeed, MPV oynatma hızını döner.
 func GetMPVPlaybackSpeed(ipcSocketPath string) (float64, error) {
 	speed, err := MPVSendCommand(ipcSocketPath, []interface{}{"get_property", "speed"})
 	if err != nil || speed == nil {
-		return 0, err
+		return 0, err // Hız hatası
 	}
 
 	currentSpeed, ok := speed.(float64)
 	if ok {
-		return currentSpeed, nil
+		return currentSpeed, nil // Oynatma hızı
 	}
 
 	return 0, nil
 }
 
+// GetPercentageWatched, izlenen kısmın yüzdesini döner.
 func GetPercentageWatched(ipcSocketPath string) (float64, error) {
 	currentTime, err := MPVSendCommand(ipcSocketPath, []interface{}{"get_property", "time-pos"})
 	if err != nil || currentTime == nil {
-		return 0, err
+		return 0, err // Zaman hatası
 	}
 
 	duration, err := MPVSendCommand(ipcSocketPath, []interface{}{"get_property", "duration"})
 	if err != nil || duration == nil {
-		return 0, err
+		return 0, err // Süre hatası
 	}
 
 	currTime, ok1 := currentTime.(float64)
 	dur, ok2 := duration.(float64)
 
 	if ok1 && ok2 && dur > 0 {
-		percentageWatched := (currTime / dur) * 100
+		percentageWatched := (currTime / dur) * 100 // İzlenen yüzdesi
 		return percentageWatched, nil
 	}
 
 	return 0, nil
 }
 
+// PercentageWatched, verilen oynatma zamanı ve toplam süreye göre izlenen yüzdesi hesaplar.
 func PercentageWatched(playbackTime int, duration int) float64 {
 	if duration > 0 {
 		percentage := (float64(playbackTime) / float64(duration)) * 100
@@ -185,20 +206,21 @@ func PercentageWatched(playbackTime int, duration int) float64 {
 	return float64(0)
 }
 
+// HasActivePlayback, MPV'nin aktif bir oynatma durumu olup olmadığını kontrol eder.
 func HasActivePlayback(ipcSocketPath string) (bool, error) {
 	maxRetries := 3
 	var lastErr error
 
+	// Aktif oynatma durumu kontrolü birkaç kez denenir
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		if attempt > 0 {
 			time.Sleep(200 * time.Millisecond)
 		}
 
 		timePos, err := MPVSendCommand(ipcSocketPath, []interface{}{"get_property", "time-pos"})
-
 		if err != nil {
 			if strings.Contains(err.Error(), "property unavailable") {
-				return false, nil
+				return false, nil // Özellik mevcut değil
 			}
 
 			if strings.Contains(err.Error(), "connect: connection refused") ||
@@ -207,22 +229,23 @@ func HasActivePlayback(ipcSocketPath string) (bool, error) {
 				continue
 			}
 
-			return false, fmt.Errorf("error getting time-pos: %w", err)
+			return false, fmt.Errorf("error getting time-pos: %w", err) // Zaman alınamadı
 		}
 
 		if timePos != nil {
-			return true, nil
+			return true, nil // Oynatma aktif
 		}
 
 		return false, nil
 	}
 
-	return false, fmt.Errorf("failed to check playback status: %w", lastErr)
+	return false, fmt.Errorf("failed to check playback status: %w", lastErr) // Durum kontrolü başarısız
 }
 
+// IsMPVRunning, MPV'nin çalışıp çalışmadığını kontrol eder.
 func IsMPVRunning(socketPath string) bool {
 	if socketPath == "" {
-		return false
+		return false // Geçersiz soket yolu
 	}
 
 	maxRetries := 3
@@ -233,16 +256,16 @@ func IsMPVRunning(socketPath string) bool {
 
 		conn, err := ipc.ConnectToPipe(socketPath)
 		if err != nil {
-			continue
+			continue // Bağlantı hatası
 		}
 		defer conn.Close()
 
 		_, err = MPVSendCommand(socketPath, []interface{}{"get_property", "pid"})
 		if err == nil {
-			return true
+			return true // MPV çalışıyor
 		}
 
 	}
 
-	return false
+	return false // MPV çalışmıyor
 }

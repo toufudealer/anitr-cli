@@ -5,46 +5,47 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"runtime"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
 )
 
 const (
-	ColorReset  = "\033[0m"
-	ColorRed    = "\033[31m"
-	ColorGreen  = "\033[32m"
-	ColorYellow = "\033[33m"
-	ColorCyan   = "\033[36m"
+	ColorReset = "\033[0m"
+	ColorRed   = "\033[31m"
+	ColorCyan  = "\033[36m"
 )
 
-func fetchApi(url string) (interface{}, error) {
+// GitHub API'den JSON verisi çeker
+func fetchAPI(url string) (interface{}, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("API'ye erişim başarısız: %w", err)
 	}
 	defer resp.Body.Close()
 
-	var result interface{}
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("API'den veri okunamadı: %w", err)
 	}
+
+	var result interface{}
 	if err = json.Unmarshal(respBody, &result); err != nil {
 		return nil, fmt.Errorf("API'den veri ayrıştırma başarısız: %w", err)
 	}
 	return result, nil
 }
 
-func FetchUpdates() (msg string, err error) {
-	data, err := fetchApi(githubApi)
+// Sürüm kontrolü yapar, yeni bir güncelleme olup olmadığını döner
+func FetchUpdates() (string, error) {
+	data, err := fetchAPI(githubAPI)
 	if err != nil {
 		return "", fmt.Errorf("güncelleme verileri alınamadı: %w", err)
 	}
 
 	latestVerStr := data.(map[string]interface{})["tag_name"].(string)
-	currentVer, err := semver.NewVersion(CurrentVersion)
+
+	currentVer, err := semver.NewVersion(version)
 	if err != nil {
 		return "", fmt.Errorf("geçerli sürüm numarası geçersiz: %v", err)
 	}
@@ -56,20 +57,25 @@ func FetchUpdates() (msg string, err error) {
 
 	if !currentVer.LessThan(latestVer) {
 		return "Zaten en son sürümdesiniz.", nil
-	} else {
-		return fmt.Sprintf("Yeni sürüm bulundu: %s -> %s", CurrentVersion, latestVerStr), err
 	}
+	return fmt.Sprintf("Yeni sürüm bulundu: %s -> %s", version, latestVerStr), nil
 }
 
-func Version() {
-	fmt.Printf("anitr-cli %s\nLisans: GPL 3.0 (Özgür Yazılım)\nDestek ver: %s\n\nGo sürümü: %s\n", CurrentVersion, repoLink, runtime.Version())
+// Sürüm bilgisini döner
+func Version() string {
+	return fmt.Sprintf(
+		"anitr-cli %s\nLisans: GPL 3.0 (Özgür Yazılım)\nDestek ver: %s\n\nGo sürümü: %s\n",
+		version, repoLink, buildEnv,
+	)
 }
 
+// Güncellemeleri kontrol eder ve varsa kullanıcıya bildirir
 func CheckUpdates() {
 	msg, err := FetchUpdates()
 
 	if err != nil {
 		fmt.Println(ColorRed + "Güncelleme kontrolü sırasında bir hata oluştu!" + ColorReset)
+		time.Sleep(2 * time.Second)
 		return
 	}
 
