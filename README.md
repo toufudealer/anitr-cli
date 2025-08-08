@@ -1,7 +1,7 @@
 <div align="center">
 
 <h1>anitr-cli</h1>
-<h3>Terminalde Türkçe altyazılı anime izleme ve arama aracı 🚀</h3>
+<h3>Terminalde Türkçe altyazılı anime arama ve izleme aracı 🚀</h3>
 
 <img src="https://raw.githubusercontent.com/xeyossr/anitr-cli/main/assets/anitr-preview.gif" alt="anitr-cli preview" width="600"/>
 

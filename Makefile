@@ -4,8 +4,9 @@ BUILD_DIR=./build
 INSTALL_DIR=/usr/bin
 
 VERSION ?= $(shell git describe --tags --abbrev=0 2>/dev/null || echo "dev")
+BUILDENV := $(shell go version)
 
-LDFLAGS=-ldflags="-X 'github.com/xeyossr/anitr-cli/internal/update.CurrentVersion=$(VERSION)'"
+LDFLAGS=-ldflags="-X 'github.com/xeyossr/anitr-cli/internal/update.version=$(VERSION)' -X 'github.com/xeyossr/anitr-cli/internal/update.buildEnv=$(BUILDENV)'"
 
 mod-tidy:
 	$(GO) mod tidy

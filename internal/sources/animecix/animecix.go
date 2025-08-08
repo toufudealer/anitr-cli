@@ -2,6 +2,7 @@ package animecix
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -16,6 +17,7 @@ import (
 
 type AnimeCix struct{}
 
+// AnimeCix API için yapılandırma ayarları
 var configAnimecix = internal.Config{
 	BaseUrl:        "https://animecix.tv/",
 	AlternativeUrl: "https://mangacix.net/",
@@ -23,22 +25,29 @@ var configAnimecix = internal.Config{
 	HttpHeaders:    map[string]string{"Accept": "application/json", "User-Agent": "Mozilla/5.0"},
 }
 
+// VideoURL, video URL'sinin etiket ve bağlantısını tutar
 type VideoURL struct {
 	Label string `json:"label"`
 	URL   string `json:"url"`
 }
 
+// VideoResponse, video URL'leri için gelen yanıtın yapısı
 type VideoResponse struct {
 	URLs []VideoURL `json:"urls"`
 }
 
+// Source, AnimeCix kaynağının adını döner
 func (a AnimeCix) Source() string {
 	return "animecix"
 }
 
+// GetSearchData, verilen sorguya göre anime verilerini döner
 func (a AnimeCix) GetSearchData(query string) ([]models.Anime, error) {
+	// Türkçe karakterleri ASCII'ye dönüştür ve boşlukları "-" ile değiştir
 	normalizedQuery := utils.NormalizeTurkishToASCII(query)
 	normalizedQuery = strings.ReplaceAll(normalizedQuery, " ", "-")
+
+	// Anime arama verilerini al
 	data, err := FetchAnimeSearchData(normalizedQuery)
 	if err != nil {
 		return nil, err
@@ -46,6 +55,7 @@ func (a AnimeCix) GetSearchData(query string) ([]models.Anime, error) {
 
 	var returnData []models.Anime
 
+	// Alınan verileri Anime modeline dönüştür
 	for _, item := range data {
 		id, ok := item["id"].(float64)
 		if !ok {
@@ -72,6 +82,7 @@ func (a AnimeCix) GetSearchData(query string) ([]models.Anime, error) {
 			poster = ""
 		}
 
+		// Anime bilgilerini ekle
 		returnData = append(returnData, models.Anime{
 			ID:        &intId,
 			Title:     title,
@@ -84,27 +95,32 @@ func (a AnimeCix) GetSearchData(query string) ([]models.Anime, error) {
 	return returnData, nil
 }
 
+// GetSeasonsData, anime için sezon bilgilerini döner
 func (a AnimeCix) GetSeasonsData(params models.SeasonParams) ([]models.Season, error) {
+	// Sezon verilerini al
 	data, err := FetchAnimeSeasonsData(*params.Id)
 	if err != nil {
 		return nil, err
 	}
 
+	// Alınan verileri sezon yapısına dönüştür
 	return []models.Season{
 		{
 			Seasons: &data,
 		},
 	}, nil
-
 }
 
+// GetEpisodesData, sezon için bölüm bilgilerini döner
 func (a AnimeCix) GetEpisodesData(params models.EpisodeParams) ([]models.Episode, error) {
+	// Bölüm verilerini al
 	episodesRaw, err := FetchAnimeEpisodesData(*params.SeasonID)
 	if err != nil {
 		return nil, fmt.Errorf("bölüm verileri alınamadı: %w", err)
 	}
 
 	var episodes []models.Episode
+	// Bölümleri modele dönüştür
 	for i, item := range episodesRaw {
 		title, _ := item["name"].(string)
 		url, _ := item["url"].(string)
@@ -120,11 +136,14 @@ func (a AnimeCix) GetEpisodesData(params models.EpisodeParams) ([]models.Episode
 	return episodes, nil
 }
 
+// GetWatchData, anime için izleme verilerini döner
 func (a AnimeCix) GetWatchData(req models.WatchParams) ([]models.Watch, error) {
+	// Verilerin eksik olup olmadığını kontrol et
 	if req.IsMovie == nil || req.Url == nil || req.Id == nil || req.Extra == nil {
 		return nil, fmt.Errorf("panic")
 	}
 
+	// Parametreleri al
 	var (
 		isMovie      bool                   = *req.IsMovie
 		url          string                 = *req.Url
@@ -134,12 +153,14 @@ func (a AnimeCix) GetWatchData(req models.WatchParams) ([]models.Watch, error) {
 		episodeIndex int                    = Extra["episodeIndex"].(int)
 	)
 
+	// Eğer filmse, film izleme verilerini al
 	if isMovie {
 		data, err := AnimeMovieWatchApiUrl(id)
 		if err != nil {
 			return nil, fmt.Errorf("film verileri alınamadı: %w", err)
 		}
 
+		// Video akışlarını kontrol et
 		streams, ok := data["video_streams"].([]interface{})
 		if !ok {
 			return nil, fmt.Errorf("video_streams verisi beklenen formatta değil")
@@ -147,6 +168,7 @@ func (a AnimeCix) GetWatchData(req models.WatchParams) ([]models.Watch, error) {
 
 		var labels []string
 		var urls []string
+		// Her bir video akışını listele
 		for _, s := range streams {
 			item, ok := s.(map[string]interface{})
 			if !ok {
@@ -164,6 +186,7 @@ func (a AnimeCix) GetWatchData(req models.WatchParams) ([]models.Watch, error) {
 			captionUrl = &c
 		}
 
+		// İzleme verilerini döndür
 		watch := models.Watch{
 			Labels:    labels,
 			Urls:      urls,
@@ -173,16 +196,19 @@ func (a AnimeCix) GetWatchData(req models.WatchParams) ([]models.Watch, error) {
 		return []models.Watch{watch}, nil
 	}
 
+	// Bölüm izleme verilerini al
 	videoStreams, err := AnimeWatchApiUrl(url)
 	if err != nil {
 		return nil, fmt.Errorf("bölüm verileri alınamadı: %w", err)
 	}
 
+	// Altyazıyı al
 	captionUrl, err := FetchTRCaption(seasonIndex, episodeIndex, id)
 	if err != nil {
 		captionUrl = ""
 	}
 
+	// Video akışlarını listele
 	var labels []string
 	var urls []string
 	for _, entry := range videoStreams {
@@ -190,6 +216,7 @@ func (a AnimeCix) GetWatchData(req models.WatchParams) ([]models.Watch, error) {
 		urls = append(urls, entry["url"])
 	}
 
+	// İzleme verisini döndür
 	watch := models.Watch{
 		Labels:    labels,
 		Urls:      urls,
@@ -199,16 +226,19 @@ func (a AnimeCix) GetWatchData(req models.WatchParams) ([]models.Watch, error) {
 	return []models.Watch{watch}, nil
 }
 
+// FetchAnimeSearchData, anime arama verilerini alır
 func FetchAnimeSearchData(query string) ([]map[string]interface{}, error) {
+	// Arama URL'sini oluştur
 	url := fmt.Sprintf("%ssecure/search/%s?type=&limit=20", configAnimecix.BaseUrl, query)
+	// JSON verisini al
 	data, err := internal.GetJson(url, configAnimecix.HttpHeaders)
 
 	if err != nil {
 		return nil, err
 	}
 
+	// Veriyi işleyerek gerekli alanları çıkart
 	m, ok := data.(map[string]interface{})
-
 	if !ok {
 		return nil, fmt.Errorf("data verisi beklenen formatta değil")
 	}
@@ -224,6 +254,7 @@ func FetchAnimeSearchData(query string) ([]map[string]interface{}, error) {
 	}
 
 	var parsed []map[string]interface{}
+	// Her bir sonucu işleyip döndür
 	for _, item := range resultsSlice {
 		itemMap, ok := item.(map[string]interface{})
 		if !ok {
@@ -244,6 +275,7 @@ func FetchAnimeSearchData(query string) ([]map[string]interface{}, error) {
 	return parsed, nil
 }
 
+// FetchAnimeSeasonsData, anime için sezon verilerini alır
 func FetchAnimeSeasonsData(id int) ([]int, error) {
 	url := fmt.Sprintf("%ssecure/related-videos?episode=1&season=1&titleId=%d&videoId=637113", configAnimecix.AlternativeUrl, id)
 	data, err := internal.GetJson(url, configAnimecix.HttpHeaders)
@@ -285,6 +317,7 @@ func FetchAnimeSeasonsData(id int) ([]int, error) {
 	return indices, nil
 }
 
+// FetchAnimeEpisodesData, anime için bölüm verilerini alır
 func FetchAnimeEpisodesData(id int) ([]map[string]interface{}, error) {
 	var episodes []map[string]interface{}
 	seenEpisodes := make(map[string]bool)
@@ -294,6 +327,7 @@ func FetchAnimeEpisodesData(id int) ([]map[string]interface{}, error) {
 		return nil, fmt.Errorf("sezon verileri alınamadı: %w", err)
 	}
 
+	// Her sezon için bölüm verilerini al
 	for _, seasonIndex := range seasons {
 		url := fmt.Sprintf("%ssecure/related-videos?episode=1&season=%d&titleId=%d&videoId=637113", configAnimecix.AlternativeUrl, seasonIndex+1, id)
 		data, err := internal.GetJson(url, configAnimecix.HttpHeaders)
@@ -312,6 +346,7 @@ func FetchAnimeEpisodesData(id int) ([]map[string]interface{}, error) {
 			return nil, fmt.Errorf("'videos' verisi yok veya beklenen formatta değil")
 		}
 
+		// Her bir video için bölüm verilerini ekle
 		for _, video := range videosRaw {
 			video, ok := video.(map[string]interface{})
 
@@ -342,6 +377,7 @@ func FetchAnimeEpisodesData(id int) ([]map[string]interface{}, error) {
 	return episodes, nil
 }
 
+// AnimeWatchApiUrl, anime için izleme verilerini döner
 func AnimeWatchApiUrl(Url string) ([]map[string]string, error) {
 	watch_url := fmt.Sprintf("%s%s", configAnimecix.BaseUrl, Url)
 	resp, err := http.Get(watch_url)
@@ -350,25 +386,29 @@ func AnimeWatchApiUrl(Url string) ([]map[string]string, error) {
 	}
 	defer resp.Body.Close()
 
+	// 422 hatası alırsak, beklenen formatta veriler yok demektir
+	if resp.StatusCode == 422 {
+		return nil, errors.New("bölüm verisi beklenen formatta değil")
+	}
+
+	// Gelen URL'yi işle ve video verilerine ulaş
 	finalUrl := resp.Request.URL.String()
 	parsedUrl, err := url.Parse(finalUrl)
 	if err != nil {
 		return nil, err
 	}
 
+	// URL'yi çözümleyip, verileri al
 	pathParts := strings.Split(parsedUrl.Path, "/")
-
 	if len(pathParts) < 3 {
 		return nil, fmt.Errorf("path verisi beklenen formatta değil")
 	}
 
 	embedID := pathParts[2]
-
 	queryParams := parsedUrl.Query()
 	vid := queryParams.Get("vid")
 
 	apiUrl := fmt.Sprintf("https://%s/api/video/%s?vid=%s", configAnimecix.VideoPlayers[0], embedID, vid)
-
 	response, err := http.Get(apiUrl)
 	if err != nil {
 		return nil, fmt.Errorf("video verileri alınamadı: %w", err)
@@ -387,6 +427,7 @@ func AnimeWatchApiUrl(Url string) ([]map[string]string, error) {
 		return nil, fmt.Errorf("video verileri ayrıştırılamadı: %w", err)
 	}
 
+	// Video URL'leri ve etiketlerini döndür
 	results := []map[string]string{}
 	for _, item := range videoResp.URLs {
 		entry := map[string]string{
@@ -400,6 +441,7 @@ func AnimeWatchApiUrl(Url string) ([]map[string]string, error) {
 	return results, nil
 }
 
+// FetchTRCaption, Türkçe altyazıyı döner
 func FetchTRCaption(seasonIndex, episodeIndex, id int) (string, error) {
 	url := fmt.Sprintf("%ssecure/related-videos?episode=1&season=%d&titleId=%d&videoId=637113", configAnimecix.AlternativeUrl, seasonIndex+1, id)
 	data, err := internal.GetJson(url, configAnimecix.HttpHeaders)
@@ -407,6 +449,7 @@ func FetchTRCaption(seasonIndex, episodeIndex, id int) (string, error) {
 		return "", fmt.Errorf("altyazı verileri alınamadı: %w", err)
 	}
 
+	// Gelen veriyi çözümle ve Türkçe altyazıyı bul
 	dataMap, ok := data.(map[string]interface{})
 	if !ok {
 		return "", fmt.Errorf("data verisi beklenen formatta değil")
@@ -417,11 +460,13 @@ func FetchTRCaption(seasonIndex, episodeIndex, id int) (string, error) {
 		return "", fmt.Errorf("'videos' verisi yok veya beklenen formatta değil")
 	}
 
+	// İlgili bölümü al
 	video, ok := videosSlice[episodeIndex].(map[string]interface{})
 	if !ok {
 		return "", fmt.Errorf("episode verisi yok veya beklenen formatta değil")
 	}
 
+	// Altyazıyı kontrol et
 	captions, ok := video["captions"].([]interface{})
 	if !ok {
 		return "", fmt.Errorf("'captions' verisi yok veya beklenen formatta değil")
@@ -439,6 +484,7 @@ func FetchTRCaption(seasonIndex, episodeIndex, id int) (string, error) {
 		}
 	}
 
+	// Eğer Türkçe altyazı bulunmazsa, bir hata döndür
 	if len(captions) == 0 {
 		return "", fmt.Errorf("altyazı bulunamadı")
 	}
@@ -446,6 +492,7 @@ func FetchTRCaption(seasonIndex, episodeIndex, id int) (string, error) {
 	return caption0["url"].(string), nil
 }
 
+// AnimeMovieWatchApiUrl, film için video URL'lerini döner
 func AnimeMovieWatchApiUrl(id int) (map[string]interface{}, error) {
 	Url := fmt.Sprintf("%ssecure/titles/%d?titleId=%d", configAnimecix.BaseUrl, id, id)
 
@@ -459,12 +506,14 @@ func AnimeMovieWatchApiUrl(id int) (map[string]interface{}, error) {
 	req.Header.Set("User-Agent", configAnimecix.HttpHeaders["User-Agent"])
 	req.Header.Set("x-e-h", "=.a")
 
+	// API'den veri al
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP isteği başarısız: %w", err)
 	}
 	defer resp.Body.Close()
 
+	// Gelen yanıtı çözümle
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP yanıtı okunamadı: %w", err)
@@ -481,6 +530,7 @@ func AnimeMovieWatchApiUrl(id int) (map[string]interface{}, error) {
 		return nil, fmt.Errorf("data beklenen formatta değil")
 	}
 
+	// Video verileriyle birlikte altyazıları da döndür
 	titleMap, ok := dataMap["title"].(map[string]interface{})
 	if !ok {
 		return nil, fmt.Errorf("'title' verisi yok veya beklenen formatta değil")
@@ -504,6 +554,7 @@ func AnimeMovieWatchApiUrl(id int) (map[string]interface{}, error) {
 			return nil, fmt.Errorf("'url' verisi yok veya beklenen formatta değil")
 		}
 
+		// Video URL'yi çözümle
 		client := &http.Client{}
 		req, err := http.NewRequest("GET", videoUrl, nil)
 		if err != nil {
@@ -521,6 +572,7 @@ func AnimeMovieWatchApiUrl(id int) (map[string]interface{}, error) {
 
 		resp.Body.Close()
 
+		// Alınan URL'yi işleyerek video verilerini döndür
 		finalUrl := resp.Request.URL.String()
 		parsedUrl, err := url.Parse(finalUrl)
 		if err != nil {
@@ -538,6 +590,7 @@ func AnimeMovieWatchApiUrl(id int) (map[string]interface{}, error) {
 		queryParams := parsedUrl.Query()
 		vid := queryParams.Get("vid")
 
+		// Video verilerini al
 		apiUrl := fmt.Sprintf("https://%s/api/video/%s?vid=%s", configAnimecix.VideoPlayers[0], embedID, vid)
 
 		response, err := http.Get(apiUrl)
@@ -547,6 +600,7 @@ func AnimeMovieWatchApiUrl(id int) (map[string]interface{}, error) {
 
 		defer response.Body.Close()
 
+		// JSON cevabını çözümle
 		respBody, err := io.ReadAll(response.Body)
 		if err != nil {
 			return nil, fmt.Errorf("video verileri okunamadı: %w", err)
@@ -558,6 +612,7 @@ func AnimeMovieWatchApiUrl(id int) (map[string]interface{}, error) {
 			return nil, fmt.Errorf("video verileri ayrıştırılamadı: %w", err)
 		}
 
+		// Video URL'lerini listele
 		result := make(map[string]interface{})
 		streams := make([]interface{}, 0)
 		for _, item := range videoResp.URLs {
@@ -571,6 +626,7 @@ func AnimeMovieWatchApiUrl(id int) (map[string]interface{}, error) {
 
 		result["video_streams"] = streams
 
+		// Altyazı URL'sini ekle
 		captions, ok := video["captions"].([]interface{})
 		if !ok {
 			return nil, fmt.Errorf("'captions' verisi yok veya beklenen formatta değil")

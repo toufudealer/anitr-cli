@@ -1,3 +1,4 @@
+// Package utils, anitr-cli uygulamasında genel amaçlı yardımcı fonksiyonları ve yapıları içerir.
 package utils
 
 import (
@@ -11,13 +12,16 @@ import (
 	"strings"
 )
 
+// Kullanıcının çıkış talebini temsil eden özel bir hata.
 var ErrQuit = errors.New("quit requested")
 
+// Logger, hata ve mesajları bir dosyaya yazmak için yapılandırılmış bir log yapısıdır.
 type Logger struct {
-	File *os.File
-	Log  *log.Logger
+	File *os.File    // Log dosyasının kendisi
+	Log  *log.Logger // Log işlemini gerçekleştiren nesne
 }
 
+// GetImage, verilen URL'den bir görsel indirir ve geçici bir dosyaya kaydeder.
 func GetImage(url string) (string, error) {
 	tempPath := filepath.Join("/tmp", "poster.png")
 
@@ -45,6 +49,7 @@ func GetImage(url string) (string, error) {
 	return tempPath, nil
 }
 
+// NewLogger, /tmp dizininde bir log dosyası oluşturur ve Logger döner.
 func NewLogger() (*Logger, error) {
 	logPath := filepath.Join("/tmp", "anitr-cli.log")
 	file, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
@@ -52,7 +57,6 @@ func NewLogger() (*Logger, error) {
 		return nil, fmt.Errorf("log dosyası açılamadı: %w", err)
 	}
 
-	//multiWriter := io.MultiWriter(file)
 	logger := log.New(file, "", log.LstdFlags|log.Lmsgprefix)
 
 	return &Logger{
@@ -61,7 +65,7 @@ func NewLogger() (*Logger, error) {
 	}, nil
 }
 
-// LogError hata objesini loglar, nil ise atlar
+// LogError, hata objesini loglar (nil ise işlem yapılmaz).
 func (l *Logger) LogError(err error) {
 	if err == nil {
 		return
@@ -69,16 +73,17 @@ func (l *Logger) LogError(err error) {
 	l.Log.Printf("[ERROR] %v\n", err)
 }
 
-// LogMsg formatlı string loglamak için
+// LogMsg, belirtilen formatta bir log mesajı yazar.
 func (l *Logger) LogMsg(format string, a ...interface{}) {
 	l.Log.Printf(format, a...)
 }
 
+// Close, log dosyasını kapatır.
 func (l *Logger) Close() error {
 	return l.File.Close()
 }
 
-// FailIfErr kritik hata durumunda loglar ve kapanır
+// FailIfErr, kritik hatalarda loglar, kullanıcıyı bilgilendirir ve uygulamayı kapatır.
 func FailIfErr(err error, logger *Logger) {
 	if err != nil {
 		if errors.Is(err, ErrQuit) {
@@ -92,7 +97,7 @@ func FailIfErr(err error, logger *Logger) {
 	}
 }
 
-// CheckErr hata varsa loglar, ekranda gösterir ve devam etmeyi kullanıcıya bırakır
+// CheckErr, hata varsa loglar, ekranda gösterir ve kullanıcıdan devam için giriş bekler.
 func CheckErr(err error, logger *Logger) bool {
 	if err != nil {
 		if errors.Is(err, ErrQuit) {
@@ -107,6 +112,7 @@ func CheckErr(err error, logger *Logger) bool {
 	return true
 }
 
+// IsValidImage, verilen URL'nin geçerli bir görsel olup olmadığını kontrol eder.
 func IsValidImage(url string) bool {
 	client := &http.Client{}
 	req, err := http.NewRequest("HEAD", url, nil)
@@ -124,6 +130,7 @@ func IsValidImage(url string) bool {
 	return resp.StatusCode == 200 && strings.HasPrefix(contentType, "image/")
 }
 
+// NormalizeTurkishToASCII, Türkçe karakterleri ASCII eşdeğerleri ile değiştirir.
 func NormalizeTurkishToASCII(input string) string {
 	replacer := strings.NewReplacer(
 		"ö", "o", "ü", "u", "ı", "i", "ç", "c", "ş", "s", "ğ", "g",
@@ -132,8 +139,14 @@ func NormalizeTurkishToASCII(input string) string {
 	return replacer.Replace(input)
 }
 
+// PrintError, verilen hatayı terminale kırmızı renkte yazdırır.
 func PrintError(err error) {
 	if err != nil {
 		fmt.Printf("\033[31mHata: %v\033[0m\n", err)
 	}
+}
+
+// Ptr, verilen değerin pointer'ını döner (herhangi bir tip için).
+func Ptr[T any](val T) *T {
+	return &val
 }
