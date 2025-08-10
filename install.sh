@@ -39,9 +39,9 @@ echo "⚙️ Derleniyor ve kuruluyor..."
 
 if [[ "$HAS_MAKE" -eq 1 ]]; then
     if [[ $EUID -ne 0 ]]; then
-        sudo make install &>/dev/null
+        sudo make install-linux &>/dev/null
     else
-        make install &>/dev/null
+        make install-linux &>/dev/null
     fi
 else
     VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "dev")
