@@ -4,6 +4,7 @@ go 1.24.5
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
+	github.com/Microsoft/go-winio v0.6.2
 	github.com/charmbracelet/bubbles v0.21.0
 	github.com/charmbracelet/bubbletea v1.3.6
 	github.com/charmbracelet/lipgloss v1.1.0
