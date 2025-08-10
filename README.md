@@ -20,6 +20,7 @@
 
 ## 🎬 Özellikler
 
+- **Cross-Platform**: Linux, Windows ve macOS üzerinde çalışabilir.
 - **AnimeCix ve OpenAnime Entegrasyonu**: Popüler anime platformlarından hızlı arama ve izleme imkanı.
 - **Fansub Seçimi**: OpenAnime üzerinden izlerken favori çeviri grubunuzu seçme özgürlüğü.
 - **Çoklu Arayüz Desteği**: Terminal tabanlı TUI ve minimalist grafik arayüz (Rofi UI) seçenekleri.
@@ -30,7 +31,9 @@
 
 ## ⚡ Kurulum
 
-### 🐧 Arch tabanlı dağıtımlar (AUR):
+## 🐧 Linux
+
+### Arch tabanlı dağıtımlar (AUR):
 
 ```bash
 yay -S anitr-cli
@@ -40,7 +43,7 @@ ya da
 paru -S anitr-cli
 ```
 
-### 🐧 Diğer Linux dağıtımları:
+### Diğer Linux dağıtımları:
 
 ```bash
 curl -sS https://raw.githubusercontent.com/xeyossr/anitr-cli/main/install.sh | bash
@@ -50,7 +53,7 @@ ya da
 git clone https://github.com/xeyossr/anitr-cli.git
 cd anitr-cli  
 git fetch --tags
-make install
+make install-linux
 ```
 
 > **Gereksinimler:**  
@@ -78,18 +81,32 @@ make install
   sudo zypper install go git make mpv rofi
   ```
 
----
+## 🪟 Windows
 
-### 🔄 Güncelleme
+> [NOTE!]
+> Windows sürümünde GUI bulunmaz, yalnızca TUI ile çalışır.
 
-- **AUR ile kurduysanız:**
-  ```bash
-  yay -Sy anitr-cli
-  ```
-- **Manuel kurulum yaptıysanız:**  
-  ```bash
-  curl -sS https://raw.githubusercontent.com/xeyossr/anitr-cli/main/install.sh | bash
-  ```
+1. Sisteminizde [**MPV**](https://sourceforge.net/projects/mpv-player-windows/files/) kurulu olmalıdır.
+2. [Releases](https://github.com/xeyossr/anitr-cli/releases) sayfasından `anitr-cli.exe` indirin.
+3. `C:\Program Files\anitr-cli` klasörünü oluşturun.
+4. `anitr-cli.exe` dosyasını bu klasöre taşıyın.
+5. PATH’e `C:\Program Files\anitr-cli` ekleyin.
+
+Artık **cmd** veya **PowerShell** içinde anitr-cli çalıştırabilirsiniz.
+
+## 💻 MacOS
+
+> [WARNING!]
+> Mac cihazım olmadığından dolayı **anitr-cli** MacOS üzerinde test edilmedi. 
+> Ancak, Linux'ta kullanılan yöntemlerle kurulup çalışması oldukça muhtemeldir. Herhangi bir sorunla karşılaşırsanız lütfen [**issue**](https://github.com/xeyossr/anitr-cli/issues) açınız.
+
+**Kurulum (Manuel)**:
+```bash
+git clone https://github.com/xeyossr/anitr-cli.git
+cd anitr-cli
+git fetch --tags
+make install-macos
+```
 
 ---
 
@@ -103,10 +120,10 @@ Bayraklar:
   `--disable-rpc`         Discord Rich Presence özelliğini kapatır   
   `--version`, `-v`       Sürüm bilgisini gösterir   
   `--help`, `-h`          Yardım menüsünü gösterir   
-  `--rofi`                **[Kullanımdan kaldırıldı]** Yerine 'rofi' alt komutunu kullanın   
+  `--rofi`                **[Kullanımdan kaldırıldı]** Yerine 'rofi' alt komutunu kullanın (Sadece Linux)  
 
-Alt komutlar:   
-  `rofi`                  Rofi arayüzü ile başlatır   
+Alt komutlar: (Sadece Linux)
+  `rofi`                  Rofi arayüzü ile başlatır
     `-f`, `--rofi-flags`  Rofi’ye özel parametreler (örn: `--rofi-flags="-theme mytheme"`)   
   `tui`                   Terminal arayüzü ile başlatır   
 
