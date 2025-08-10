@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -21,14 +23,35 @@ type MPVParams struct {
 
 // isMPVInstalled fonksiyonu, sistemde MPV oynatıcısının yüklü olup olmadığını kontrol eder.
 func isMPVInstalled() error {
-	_, err := exec.LookPath("mpv") // MPV'nin sistemde bulunup bulunmadığını kontrol eder
+	mpvBinary := "mpv"
+	if runtime.GOOS == "windows" {
+		mpvBinary = "mpv.exe"
+	}
+	_, err := exec.LookPath(mpvBinary) // MPV'nin sistemde bulunup bulunmadığını kontrol eder
 	return err
+}
+
+// getMPVSocketPath platforma göre IPC yolunu döner
+func getMPVSocketPath() string {
+	if runtime.GOOS == "windows" {
+		// Windows named pipe yolu
+		return `\\.\pipe\anitr-cli-410`
+	}
+	// Linux/macOS unix socket
+	return filepath.Join(os.TempDir(), "anitr-cli-410.sock")
+}
+
+// getMPVBinary platforma göre mpv binary adını döner
+func getMPVBinary() string {
+	if runtime.GOOS == "windows" {
+		return "mpv.exe"
+	}
+	return "mpv"
 }
 
 // Play fonksiyonu, verilen parametrelerle MPV oynatıcıyı başlatır.
 func Play(params MPVParams) (*exec.Cmd, string, error) {
-	mpvSocket := "anitr-cli-410.sock"
-	mpvSocketPath := filepath.Join("/tmp", mpvSocket)
+	mpvSocketPath := getMPVSocketPath()
 
 	// MPV'nin yüklü olup olmadığını kontrol et
 	if err := isMPVInstalled(); err != nil {
@@ -38,13 +61,22 @@ func Play(params MPVParams) (*exec.Cmd, string, error) {
 	// MPV başlatma komutunu oluştur
 	args := []string{
 		"--fullscreen", // Tam ekran başlat
-		"--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/137.0.0.0 Safari/537.36",
-		"--referrer=https://yeshi.eu.org/",
-		"--save-position-on-quit",                           // Çıkıldığında konumu kaydet
-		fmt.Sprintf("--title=%s", params.Title),             // Başlık
-		fmt.Sprintf("--force-media-title=%s", params.Title), // Başlık zorlama
+		"--save-position-on-quit",
+		fmt.Sprintf("--title=%s", params.Title),
+		fmt.Sprintf("--force-media-title=%s", params.Title),
 		"--idle=once", "--really-quiet", "--no-terminal",
-		fmt.Sprintf("--input-ipc-server=%s", mpvSocketPath), // IPC soketi
+		fmt.Sprintf("--input-ipc-server=%s", mpvSocketPath),
+	}
+
+	// Platform bazlı user-agent ve referrer ayarı (isteğe bağlı)
+	if runtime.GOOS == "linux" {
+		args = append(args,
+			"--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/137.0.0.0 Safari/537.36",
+			"--referrer=https://yeshi.eu.org/")
+	} else if runtime.GOOS == "windows" {
+		args = append(args,
+			"--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+			"--referrer=https://yeshi.eu.org/")
 	}
 
 	// Eğer altyazı URL'si varsa, altyazı dosyasını ekle
@@ -55,13 +87,13 @@ func Play(params MPVParams) (*exec.Cmd, string, error) {
 	// Video URL'sini ekle
 	args = append(args, params.Url)
 
-	// MPV'yi başlat
-	cmd := exec.Command("mpv", args...)
+	mpvBinary := getMPVBinary()
+	cmd := exec.Command(mpvBinary, args...)
 	if err := cmd.Start(); err != nil {
 		return cmd, "", err // Başlatma hatası
 	}
 
-	// MPV'nin IPC soketini bekle
+	// MPV'nin IPC soketinin hazır olmasını bekle
 	maxRetries := 25
 	retryDelay := 300 * time.Millisecond
 	for i := 0; i < maxRetries; i++ {
@@ -69,11 +101,11 @@ func Play(params MPVParams) (*exec.Cmd, string, error) {
 		conn, err := ipc.ConnectToPipe(mpvSocketPath)
 		if err == nil {
 			conn.Close()
-			return cmd, mpvSocketPath, nil // Bağlantı başarılı
+			return cmd, mpvSocketPath, nil
 		}
 	}
 
-	return cmd, "", errors.New("MPV socket hazır değil, başlatılamadı") // Socket hatası
+	return cmd, "", errors.New("MPV socket hazır değil, başlatılamadı")
 }
 
 // MPVSendCommand, MPV'ye bir komut gönderir ve yanıtını döner.

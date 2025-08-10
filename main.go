@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"slices"
 	"sort"
 	"strconv"
@@ -854,7 +855,6 @@ func runMain(f *flags.Flags, uiMode string, logger *utils.Logger) {
 
 // Uygulama komutlarını çalıştıran giriş fonksiyonu
 func runApp() {
-	// Logger başlatılır
 	logger, err := utils.NewLogger()
 	if err != nil {
 		panic(err)
@@ -862,30 +862,46 @@ func runApp() {
 	defer logger.Close()
 	log.SetFlags(0)
 
-	// Komut satırı bayrakları ve komutları ayarla
 	rootCmd, f := flags.NewFlagsCmd()
 
-	// "rofi" komutu için işlemler
-	rofiCmd, _ := rootCmd.Commands()[0], f // varsayım: ilk alt komut rofiCmd
-	rofiCmd.Run = func(cmd *cobra.Command, args []string) {
-		f.RofiMode = true
-		runMain(f, "rofi", logger)
+	commands := rootCmd.Commands()
+
+	if runtime.GOOS != "linux" {
+		// Windows ve Mac'te alt komut yok, doğrudan tui modunda çalıştır
+		rootCmd.Run = func(cmd *cobra.Command, args []string) {
+			f.RofiMode = false
+			runMain(f, "tui", logger)
+		}
+	} else {
+		// Linux için alt komutlar varsa ayarla
+		var rofiCmd, tuiCmd *cobra.Command
+		if len(commands) > 0 {
+			rofiCmd = commands[0]
+		}
+		if len(commands) > 1 {
+			tuiCmd = commands[1]
+		}
+
+		if rofiCmd != nil {
+			rofiCmd.Run = func(cmd *cobra.Command, args []string) {
+				f.RofiMode = true
+				runMain(f, "rofi", logger)
+			}
+		}
+
+		if tuiCmd != nil {
+			tuiCmd.Run = func(cmd *cobra.Command, args []string) {
+				f.RofiMode = false
+				runMain(f, "tui", logger)
+			}
+		}
+
+		rootCmd.Run = func(cmd *cobra.Command, args []string) {
+			f.RofiMode = false
+			runMain(f, "tui", logger)
+		}
 	}
 
-	// "tui" komutu için işlemler
-	tuiCmd, _ := rootCmd.Commands()[1], f // varsayım: ikinci alt komut tuiCmd
-	tuiCmd.Run = func(cmd *cobra.Command, args []string) {
-		f.RofiMode = false
-		runMain(f, "tui", logger)
-	}
-
-	// root komut çalıştırılırsa, default tui modu çalışsın
-	rootCmd.Run = func(cmd *cobra.Command, args []string) {
-		f.RofiMode = false
-		runMain(f, "tui", logger)
-	}
-
-	// Komutları çalıştır
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
