@@ -1,4 +1,3 @@
-// Package utils, anitr-cli uygulamasında genel amaçlı yardımcı fonksiyonları ve yapıları içerir.
 package utils
 
 import (
@@ -9,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -21,9 +21,27 @@ type Logger struct {
 	Log  *log.Logger // Log işlemini gerçekleştiren nesne
 }
 
+// getTempDir işletim sistemine göre geçici dizin döner.
+func getTempDir() string {
+	if runtime.GOOS == "windows" {
+		// Windows ortam değişkeni TEMP veya TMP
+		if temp := os.Getenv("TEMP"); temp != "" {
+			return temp
+		}
+		if tmp := os.Getenv("TMP"); tmp != "" {
+			return tmp
+		}
+		// Fallback
+		return `C:\Temp`
+	}
+	// Unix benzeri sistemler için /tmp
+	return "/tmp"
+}
+
 // GetImage, verilen URL'den bir görsel indirir ve geçici bir dosyaya kaydeder.
 func GetImage(url string) (string, error) {
-	tempPath := filepath.Join("/tmp", "poster.png")
+	tempDir := getTempDir()
+	tempPath := filepath.Join(tempDir, "poster.png")
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -49,9 +67,11 @@ func GetImage(url string) (string, error) {
 	return tempPath, nil
 }
 
-// NewLogger, /tmp dizininde bir log dosyası oluşturur ve Logger döner.
+// NewLogger, işletim sistemine göre uygun dizinde bir log dosyası oluşturur ve Logger döner.
 func NewLogger() (*Logger, error) {
-	logPath := filepath.Join("/tmp", "anitr-cli.log")
+	tempDir := getTempDir()
+	logPath := filepath.Join(tempDir, "anitr-cli.log")
+
 	file, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return nil, fmt.Errorf("log dosyası açılamadı: %w", err)
@@ -64,6 +84,8 @@ func NewLogger() (*Logger, error) {
 		Log:  logger,
 	}, nil
 }
+
+// ... diğer fonksiyonlar değişmeden kalabilir ...
 
 // LogError, hata objesini loglar (nil ise işlem yapılmaz).
 func (l *Logger) LogError(err error) {
