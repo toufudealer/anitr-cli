@@ -83,7 +83,7 @@ make install-linux
 
 ## 🪟 Windows
 
-> [NOTE!]
+> [!NOTE]
 > Windows sürümünde GUI bulunmaz, yalnızca TUI ile çalışır.
 
 1. Sisteminizde [**MPV**](https://sourceforge.net/projects/mpv-player-windows/files/) kurulu olmalıdır.
@@ -96,7 +96,7 @@ Artık **cmd** veya **PowerShell** içinde anitr-cli çalıştırabilirsiniz.
 
 ## 💻 MacOS
 
-> [WARNING!]
+> [!WARNING]
 > Mac cihazım olmadığından dolayı **anitr-cli** MacOS üzerinde test edilmedi. 
 > Ancak, Linux'ta kullanılan yöntemlerle kurulup çalışması oldukça muhtemeldir. Herhangi bir sorunla karşılaşırsanız lütfen [**issue**](https://github.com/xeyossr/anitr-cli/issues) açınız.
 
