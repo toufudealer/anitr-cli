@@ -28,43 +28,24 @@ build-macos:
 	GOOS=darwin GOARCH=amd64 $(GO) build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-macos-amd64
 	GOOS=darwin GOARCH=arm64 $(GO) build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-macos-arm64
 
-build: mod-tidy build-linux build-windows build-macos
+build: mod-tidy
+	mkdir -p $(BUILD_DIR)
+	$(GO) build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)
 
-install-linux: build-linux
-	@echo "Linux işlemci mimarisi seçin:"
-	@echo "1) amd64 (x86_64)"
-	@echo "2) arm64 (aarch64)"
-	@read -p "Seçiminiz (1/2): " choice; \
-	if [ "$$choice" = "1" ]; then \
-		chmod +x $(BUILD_DIR)/$(BINARY_NAME)-linux-x86_64; \
-		sudo mv $(BUILD_DIR)/$(BINARY_NAME)-linux-x86_64 $(INSTALL_DIR_LINUX)/$(BINARY_NAME); \
-	elif [ "$$choice" = "2" ]; then \
-		chmod +x $(BUILD_DIR)/$(BINARY_NAME)-linux-arm64; \
-		sudo mv $(BUILD_DIR)/$(BINARY_NAME)-linux-arm64 $(INSTALL_DIR_LINUX)/$(BINARY_NAME); \
-	else \
-		echo "Geçersiz seçim! Kurulum iptal edildi."; \
-		exit 1; \
-	fi
+build-all: mod-tidy build-linux build-windows build-macos
 
-install-windows: build-windows
+install-linux: build
+	chmod +x $(BUILD_DIR)/$(BINARY_NAME)
+	sudo mv $(BUILD_DIR)/$(BINARY_NAME) $(INSTALL_DIR_LINUX)/$(BINARY_NAME)
+
+install-windows: build
 	powershell -Command "New-Item -ItemType Directory -Force -Path $(INSTALL_DIR_WINDOWS)"
-	powershell -Command "Copy-Item -Path $(BUILD_DIR)/$(BINARY_NAME)-windows-x86_64.exe -Destination $(INSTALL_DIR_WINDOWS)/$(BINARY_NAME).exe -Force"
+	powershell -Command "Copy-Item -Path $(BUILD_DIR)/$(BINARY_NAME) -Destination $(INSTALL_DIR_WINDOWS)/$(BINARY_NAME).exe -Force"
 
-install-macos: build-macos
-	@echo "Mac işlemci mimarisi seçin:"
-	@echo "1) amd64 (Intel)"
-	@echo "2) arm64 (Apple Silicon)"
-	@read -p "Seçiminiz (1/2): " choice; \
-	if [ "$$choice" = "1" ]; then \
-		sudo mv $(BUILD_DIR)/$(BINARY_NAME)-macos-amd64 $(INSTALL_DIR_MAC)/$(BINARY_NAME); \
-	elif [ "$$choice" = "2" ]; then \
-		sudo mv $(BUILD_DIR)/$(BINARY_NAME)-macos-arm64 $(INSTALL_DIR_MAC)/$(BINARY_NAME); \
-	else \
-		echo "Geçersiz seçim! Kurulum iptal edildi."; \
-		exit 1; \
-	fi
+install-macos: build
+	sudo mv $(BUILD_DIR)/$(BINARY_NAME) $(INSTALL_DIR_MAC)/$(BINARY_NAME)
 
 clean:
 	rm -rf $(BUILD_DIR)
 
-all: build install
+all: build-all install
