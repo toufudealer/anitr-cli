@@ -22,7 +22,10 @@ func ClientLogin() (bool, error) {
 func DiscordRPC(params internal.RPCParams, loggedIn bool) (bool, error) {
 	// Eğer Discord'a giriş yapılmamışsa, giriş yap
 	if !loggedIn {
-		ClientLogin()
+	    ok, err := ClientLogin()
+	   	if err != nil || !ok {
+	    	return false, fmt.Errorf("discord rpc login başarısız: %v", err)
+	    }
 		loggedIn = true
 	}
 
@@ -45,7 +48,31 @@ func DiscordRPC(params internal.RPCParams, loggedIn bool) (bool, error) {
 	// Eğer aktivite güncelleme hatalıysa
 	if err != nil {
 		loggedIn = false
-		return loggedIn, fmt.Errorf("discord rpc güncelleme başarısız: %v", err) // Güncelleme hatası
+		ok, err := ClientLogin()
+		if err != nil || !ok {
+			return false, fmt.Errorf("discord rpc yeniden login başarısız: %v", err)
+		}
+
+		err = client.SetActivity(client.Activity{
+    	        State:      params.State,
+        	    Details:    params.Details,
+            	LargeImage: params.LargeImage,
+	            LargeText:  params.LargeText,
+    	        SmallImage: params.SmallImage,
+        	    SmallText:  params.SmallText,
+            	Buttons: []*client.Button{
+                	{
+                    	Label: "GitHub",
+	                    Url:   "https://github.com/xeyossr/anitr-cli",
+    	           	},
+        		},
+        	})
+
+        if err != nil {
+            return false, fmt.Errorf("discord rpc retry setactivity başarısız: %v", err)
+        }
+	
+        loggedIn = true
 	}
 
 	return loggedIn, nil // Başarılı RPC güncellemesi
