@@ -58,7 +58,7 @@ make install-linux
 
 > **Gereksinimler:**  
 > Derleme: `go`, `git`, `make`  
-> Kullanım: `mpv`  
+> Kullanım: `vlc`  
 > İsteğe bağlı: `rofi` (Rofi arayüzü için)
 
 **Paketleri yüklemek için:**
@@ -66,19 +66,19 @@ make install-linux
 - **Debian/Ubuntu:**
   ```bash
   sudo apt update
-  sudo apt install golang git make mpv rofi
+  sudo apt install golang git make vlc rofi
   ```
 - **Arch/Manjaro:**
   ```bash
-  sudo pacman -S go git make mpv rofi
+  sudo pacman -S go git make vlc rofi
   ```
 - **Fedora:**
   ```bash
-  sudo dnf install golang git make mpv rofi
+  sudo dnf install golang git make vlc rofi
   ```
 - **openSUSE:**
   ```bash
-  sudo zypper install go git make mpv rofi
+  sudo zypper install go git make vlc rofi
   ```
 
 ## 🪟 Windows
@@ -86,7 +86,7 @@ make install-linux
 > [!NOTE]
 > Windows sürümünde GUI bulunmaz, yalnızca TUI ile çalışır.
 
-1. Sisteminizde [**MPV**](https://sourceforge.net/projects/mpv-player-windows/files/) kurulu olmalıdır.
+1. Sisteminizde [**VLC**](https://www.videolan.org/) kurulu olmalıdır.
 2. [Releases](https://github.com/xeyossr/anitr-cli/releases) sayfasından `anitr-cli.exe` indirin.
 3. `C:\Program Files\anitr-cli` klasörünü oluşturun.
 4. `anitr-cli.exe` dosyasını bu klasöre taşıyın.

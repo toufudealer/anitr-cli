@@ -488,40 +488,26 @@ func playAnimeLoop(
 				mpvTitle = selectedAnimeName
 			}
 
-			// MPV ile oynat
-			cmd, socketPath, err := player.Play(player.MPVParams{
+			// VLC ile oynat
+			cmd, _, err := player.PlayVLC(player.VLCParams{
 				Url:         urls[selectedResolutionIdx],
 				SubtitleUrl: &subtitle,
 				Title:       mpvTitle,
+				VLCPath:     "", // Assuming VLC is in PATH, otherwise specify
 			})
 			if !utils.CheckErr(err, logger) {
 				return source, selectedSource
 			}
 
-			// MPV’nin çalışıp çalışmadığını kontrol et
-			maxAttempts := 10
-			mpvRunning := false
-			for i := 0; i < maxAttempts; i++ {
-				time.Sleep(300 * time.Millisecond)
-				if player.IsMPVRunning(socketPath) {
-					mpvRunning = true
-					break
-				}
-			}
-			if !mpvRunning {
-				logger.LogError(fmt.Errorf("MPV başlatılamadı veya zamanında yanıt vermedi"))
-				return source, selectedSource
-			}
-
 			// Discord RPC'yi başlat
 			if !disableRPC {
-				go updateDiscordRPC(socketPath, episodeNames, selectedEpisodeIndex, selectedAnimeName, selectedSource, posterURL, logger, &loggedIn)
+				go updateDiscordRPC(episodeNames, selectedEpisodeIndex, selectedAnimeName, selectedSource, posterURL, logger, &loggedIn)
 			}
 
 			// Oynatma işlemi tamamlanana kadar bekle
 			err = cmd.Wait()
 			if err != nil {
-				fmt.Println("MPV çalışırken hata:", err)
+				fmt.Println("VLC çalışırken hata:", err)
 			}
 
 		// Çözünürlük seçme ekranı
@@ -650,88 +636,34 @@ func playAnimeLoop(
 }
 
 // Discord RPC'yi güncelleyerek anime oynatma durumunu Discord'a yansıtır
-func updateDiscordRPC(socketPath string, episodeNames []string, selectedEpisodeIndex int, selectedAnimeName, selectedSource, posterURL string, logger *utils.Logger, loggedIn *bool) {
-	// 5 saniyede bir discord RPC güncellemesi yapmak için zamanlayıcı başlatılır
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-
-	// Zamanlayıcı her tetiklendiğinde bu bloğu çalıştır
-	for range ticker.C {
-		// Eğer MPV çalışmıyorsa döngüden çık
-		if !player.IsMPVRunning(socketPath) {
-			break
-		}
-
-		// MPV'nin duraklatma durumunu al
-		isPaused, err := player.GetMPVPausedStatus(socketPath)
+func updateDiscordRPC(episodeNames []string, selectedEpisodeIndex int, selectedAnimeName, selectedSource, posterURL string, logger *utils.Logger, loggedIn *bool) {
+	// Discord RPC'yi başlat
+	if !*loggedIn {
+		var err error
+		*loggedIn, err = rpc.ClientLogin()
 		if err != nil {
-			// Hata durumunda log kaydederiz
-			logger.LogError(fmt.Errorf("pause durumu alınamadı: %w", err))
-			continue
+			logger.LogError(err)
+			return
 		}
+	}
 
-		// MPV'nin toplam süresini al
-		durationVal, err := player.MPVSendCommand(socketPath, []interface{}{"get_property", "duration"})
-		if err != nil {
-			// Hata durumunda log kaydederiz
-			logger.LogError(fmt.Errorf("süre alınamadı: %w", err))
-			continue
-		}
+	// Discord'da gösterilecek durum bilgisini oluştur
+	state := fmt.Sprintf("Bölüm %d: %s", selectedEpisodeIndex+1, episodeNames[selectedEpisodeIndex])
 
-		// MPV'nin geçerli zamanını al
-		timePosVal, err := player.MPVSendCommand(socketPath, []interface{}{"get_property", "time-pos"})
-		if err != nil {
-			// Hata durumunda log kaydederiz
-			logger.LogError(fmt.Errorf("konum alınamadı: %w", err))
-			continue
-		}
+	// Discord RPC için parametreleri ayarla ve RPC'yi güncelle
+	var err2 error
+	*loggedIn, err2 = rpc.DiscordRPC(internal.RPCParams{
+		Details:    selectedAnimeName,
+		State:      state,
+		SmallImage: strings.ToLower(selectedSource),
+		SmallText:  selectedSource,
+		LargeImage: posterURL,
+		LargeText:  selectedAnimeName,
+	}, *loggedIn)
 
-		// Süre ve zaman konumunu doğru türdeki verilere dönüştür
-		duration, ok1 := durationVal.(float64)
-		timePos, ok2 := timePosVal.(float64)
-		if !ok1 || !ok2 {
-			// Eğer süre veya zaman konumu uygun formatta değilse hata loglanır
-			logger.LogError(fmt.Errorf("süre veya zaman konumu parse edilemedi"))
-			continue
-		}
-
-		// Zaman formatını dönüştürmek için yardımcı fonksiyon
-		formatTime := func(seconds float64) string {
-			total := int(seconds + 0.5)    // saniyeleri tam sayıya yuvarla
-			hours := total / 3600          // saatleri hesapla
-			minutes := (total % 3600) / 60 // dakikaları hesapla
-			secs := total % 60             // saniyeleri hesapla
-
-			// Saat varsa "hh:mm:ss", yoksa "mm:ss" formatında döndür
-			if hours > 0 {
-				return fmt.Sprintf("%02d:%02d:%02d", hours, minutes, secs)
-			}
-			return fmt.Sprintf("%02d:%02d", minutes, secs)
-		}
-
-		// Discord'da gösterilecek durum bilgisini oluştur
-		state := fmt.Sprintf("%s (%s / %s)", episodeNames[selectedEpisodeIndex], formatTime(timePos), formatTime(duration))
-		// Eğer video duraklatıldıysa, duraklatma bilgisini ekle
-		if isPaused {
-			state = fmt.Sprintf("%s (%s / %s) (Paused)", episodeNames[selectedEpisodeIndex], formatTime(timePos), formatTime(duration))
-		}
-
-		// Discord RPC için parametreleri ayarla ve RPC'yi güncelle
-		var err2 error
-		*loggedIn, err2 = rpc.DiscordRPC(internal.RPCParams{
-			Details:    selectedAnimeName,
-			State:      state,
-			SmallImage: strings.ToLower(selectedSource),
-			SmallText:  selectedSource,
-			LargeImage: posterURL,
-			LargeText:  selectedAnimeName,
-		}, *loggedIn)
-
-		// Discord RPC güncelleme hatası varsa logla
-		if err2 != nil {
-			logger.LogError(fmt.Errorf("DiscordRPC hatası: %w", err2))
-			continue
-		}
+	// Discord RPC güncelleme hatası varsa logla
+	if err2 != nil {
+		logger.LogError(fmt.Errorf("DiscordRPC hatası: %w", err2))
 	}
 }
 

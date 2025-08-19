@@ -12,6 +12,7 @@ type Flags struct {
 	PrintVersion bool
 	RofiMode     bool
 	RofiFlags    string
+	VLCPath      string
 }
 
 func NewFlagsCmd() (*cobra.Command, *Flags) {
@@ -30,6 +31,8 @@ func NewFlagsCmd() (*cobra.Command, *Flags) {
 
 	cmd.PersistentFlags().BoolVar(&f.DisableRPC, "disable-rpc", false,
 		"Discord Rich Presence desteğini devre dışı bırakır.")
+
+	cmd.PersistentFlags().StringVar(&f.VLCPath, "vlc-path", "", "VLC oynatıcısının tam yolunu belirtir.")
 
 	cmd.SetVersionTemplate(update.Version())
 	cmd.Version = update.Version()

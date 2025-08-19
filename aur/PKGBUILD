@@ -7,7 +7,7 @@ pkgdesc="🚀 Terminalde Türkçe altyazılı anime arama ve izleme aracı"
 arch=('any')
 url="https://github.com/xeyossr/anitr-cli"
 license=('GPL3')
-depends=('mpv')
+depends=('vlc')
 makedepends=('go' 'git')
 
 optdepends=(
