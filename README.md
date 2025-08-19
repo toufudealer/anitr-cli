@@ -36,53 +36,8 @@
 
 ## 🐧 Linux
 
-### Arch tabanlı dağıtımlar (AUR):
-
-```bash
-yay -S anitr-cli
-```
-ya da
-```bash
-paru -S anitr-cli
-```
-
-### Diğer Linux dağıtımları:
-
-```bash
-curl -sS https://raw.githubusercontent.com/xeyossr/anitr-cli/main/install.sh | bash
-```
-ya da
-```bash
-git clone https://github.com/xeyossr/anitr-cli.git
-cd anitr-cli  
-git fetch --tags
-make install-linux
-```
-
-> **Gereksinimler:**  
-> Derleme: `go`, `git`, `make`  
-> Kullanım: `vlc`  
-> İsteğe bağlı: `rofi` (Rofi arayüzü için)
-
-**Paketleri yüklemek için:**
-
-- **Debian/Ubuntu:**
-  ```bash
-  sudo apt update
-  sudo apt install golang git make vlc rofi
-  ```
-- **Arch/Manjaro:**
-  ```bash
-  sudo pacman -S go git make vlc rofi
-  ```
-- **Fedora:**
-  ```bash
-  sudo dnf install golang git make vlc rofi
-  ```
-- **openSUSE:**
-  ```bash
-  sudo zypper install go git make vlc rofi
-  ```
+> [!NOTE]
+> Linux kurulumu için lütfen orijinal proje olan [xeyossr/anitr-cli](https://github.com/xeyossr/anitr-cli) adresini ziyaret edin.
 
 ## 🪟 Windows
 
@@ -124,17 +79,8 @@ Artık **cmd** veya **PowerShell** içinde anitr-cli çalıştırabilirsiniz.
 
 ## 💻 MacOS
 
-> [!WARNING]
-> Mac cihazım olmadığından dolayı **anitr-cli** MacOS üzerinde test edilmedi. 
-> Ancak, Linux'ta kullanılan yöntemlerle kurulup çalışması oldukça muhtemeldir. Herhangi bir sorunla karşılaşırsanız lütfen [**issue**](https://github.com/xeyossr/anitr-cli/issues) açınız.
-
-**Kurulum (Manuel)**:
-```bash
-git clone https://github.com/xeyossr/anitr-cli.git
-cd anitr-cli
-git fetch --tags
-make install-macos
-```
+> [!NOTE]
+> macOS kurulumu için lütfen orijinal proje olan [xeyossr/anitr-cli](https://github.com/xeyossr/anitr-cli) adresini ziyaret edin.
 
 --- 
 
