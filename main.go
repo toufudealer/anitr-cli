@@ -13,6 +13,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/xeyossr/anitr-cli/internal"
+	"github.com/xeyossr/anitr-cli/internal/downloader"
 	"github.com/xeyossr/anitr-cli/internal/flags"
 	"github.com/xeyossr/anitr-cli/internal/models"
 	"github.com/xeyossr/anitr-cli/internal/player"
@@ -24,21 +25,6 @@ import (
 )
 
 // updateWatchAPI, seçilen kaynağa (animecix veya openanime) göre bir bölümün izlenebilir URL'lerini ve altyazı bilgilerini getirir.
-// Ayrıca varsa TR altyazı URL'sini de döner.
-// Params:
-// - source: kaynak adı ("animecix", "openanime")
-// - episodeData: bölüm listesi
-// - index: seçilen bölümün dizindeki yeri
-// - id: anime ID'si
-// - seasonIndex: sezonun sıfırdan başlayan indeksi
-// - selectedFansubIndex: openanime için seçilen fansub'un sırası
-// - isMovie: film mi dizi mi
-// - slug: openanime için gerekli olan tanımlayıcı
-//
-// Returns:
-// - İzlenebilir kaynakları ve altyazı URL'sini içeren map[string]interface{}
-// - Eğer openanime seçildiyse, fansub'ları içeren []models.Fansub
-// - Hata (varsa)
 func updateWatchAPI(
 	source string,
 	episodeData []models.Episode,
@@ -47,21 +33,19 @@ func updateWatchAPI(
 	slug *string,
 ) (map[string]interface{}, []models.Fansub, error) {
 	var (
-		captionData []map[string]string // Video etiketleri ve URL'leri
-		fansubData  []models.Fansub     // Fansub listesi (openanime için)
-		captionURL  string              // Türkçe altyazı URL'si
+		captionData []map[string]string
+		fansubData  []models.Fansub
+		captionURL  string
 		err         error
 	)
 
 	switch source {
 	case "animecix":
-		// Film ise farklı API kullan
 		if isMovie {
 			data, err := animecix.AnimeMovieWatchApiUrl(id)
 			if err != nil {
 				return nil, nil, fmt.Errorf("animecix movie API çağrısı başarısız: %w", err)
 			}
-			// Caption URL ve video stream'leri al
 			captionURLIface := data["caption_url"]
 			captionURL, _ = captionURLIface.(string)
 			streamsIface, ok := data["video_streams"]
@@ -76,7 +60,6 @@ func updateWatchAPI(
 				captionData = append(captionData, map[string]string{"label": label, "url": url})
 			}
 		} else {
-			// Dizi bölümü için
 			if index < 0 || index >= len(episodeData) {
 				return nil, nil, fmt.Errorf("index out of range")
 			}
@@ -85,7 +68,6 @@ func updateWatchAPI(
 			if err != nil {
 				return nil, nil, fmt.Errorf("animecix watch API çağrısı başarısız: %w", err)
 			}
-			// Sezon içerisindeki bölüm indeksini bul
 			seasonEpisodeIndex := 0
 			for i := 0; i < index; i++ {
 				if sn, ok := episodeData[i].Extra["season_num"].(int); ok {
@@ -98,7 +80,6 @@ func updateWatchAPI(
 					}
 				}
 			}
-			// TR altyazı URL'sini almaya çalış
 			captionURL, err = animecix.FetchTRCaption(seasonIndex, seasonEpisodeIndex, id)
 			if err != nil {
 				captionURL = ""
@@ -116,7 +97,6 @@ func updateWatchAPI(
 		seasonNum := 0
 		episodeNum := 0
 
-		// Sezon ve bölüm numaralarını al
 		if sn, ok := ep.Extra["season_num"].(int); ok {
 			seasonNum = sn
 		} else if snf, ok := ep.Extra["season_num"].(float64); ok {
@@ -132,7 +112,6 @@ func updateWatchAPI(
 			episodeNum = ep.Number
 		}
 
-		// Fansub listesini al
 		fansubParams := models.FansubParams{
 			Slug:       slug,
 			SeasonNum:  &seasonNum,
@@ -146,7 +125,6 @@ func updateWatchAPI(
 			return nil, nil, fmt.Errorf("seçilen fansub indeksi geçersiz")
 		}
 
-		// İzlenebilir veri isteği yap
 		watchParams := models.WatchParams{
 			Slug:    slug,
 			Id:      &id,
@@ -181,7 +159,6 @@ func updateWatchAPI(
 		return nil, nil, fmt.Errorf("geçersiz kaynak: %s", source)
 	}
 
-	// Kaliteye göre (etiket sayısal değerine göre) sırala
 	sort.Slice(captionData, func(i, j int) bool {
 		labelI := strings.TrimRight(captionData[i]["label"], "p")
 		labelJ := strings.TrimRight(captionData[j]["label"], "p")
@@ -190,7 +167,6 @@ func updateWatchAPI(
 		return intI > intJ
 	})
 
-	// Etiketleri ve URL'leri ayır
 	labels := []string{}
 	urls := []string{}
 	for _, item := range captionData {
@@ -207,17 +183,14 @@ func updateWatchAPI(
 
 // --- UI ve kullanıcı etkileşimi fonksiyonları ---
 
-// Kullanıcıdan kaynak seçmesini isteyen fonksiyon
 func selectSource(uiMode string, rofiFlags string, logger *utils.Logger) (string, models.AnimeSource) {
 	for {
-		// Mevcut kaynaklar
 		sourceList := []string{"OpenAnime", "AnimeciX"}
 
-		// Kullanıcıdan seçim al
-		selectedSource, err := showSelection(App{uiMode: &uiMode, rofiFlags: &rofiFlags}, sourceList, "Kaynak seç ")
+		appCtx := App{uiMode: &uiMode, rofiFlags: &rofiFlags, logger: logger}
+		selectedSource, err := showSelection(appCtx, sourceList, "Kaynak seç ", "generic", nil)
 		utils.FailIfErr(err, logger)
 
-		// Seçilen kaynağa göre uygun AnimeSource objesini ayarla
 		var source models.AnimeSource
 		switch strings.ToLower(selectedSource) {
 		case "openanime":
@@ -225,7 +198,6 @@ func selectSource(uiMode string, rofiFlags string, logger *utils.Logger) (string
 		case "animecix":
 			source = animecix.AnimeCix{}
 		default:
-			// Geçersiz seçim yapılırsa kullanıcıyı uyar
 			fmt.Printf("\033[31m[!] Geçersiz kaynak seçimi: %s\033[0m\n", selectedSource)
 			time.Sleep(1500 * time.Millisecond)
 			continue
@@ -234,25 +206,20 @@ func selectSource(uiMode string, rofiFlags string, logger *utils.Logger) (string
 	}
 }
 
-// Kullanıcıdan arama girdisi alır ve API üzerinden sonuçları getirir
 func searchAnime(source models.AnimeSource, uiMode string, rofiFlags string, logger *utils.Logger) ([]models.Anime, []string, []string, map[string]models.Anime) {
 	for {
-		// Kullanıcıdan arama kelimesi al
 		query, err := ui.InputFromUser(internal.UiParams{Mode: uiMode, RofiFlags: &rofiFlags, Label: "Anime ara ", Logger: logger})
 		utils.FailIfErr(err, logger)
 
-		// API üzerinden arama yap
 		searchData, err := source.GetSearchData(query)
 		utils.FailIfErr(err, logger)
 
-		// Hiç sonuç çıkmazsa kullanıcıyı bilgilendir
 		if searchData == nil {
 			fmt.Printf("\033[31m[!] Arama sonucu bulunamadı!\033[0m")
 			time.Sleep(1500 * time.Millisecond)
 			continue
 		}
 
-		// Arama sonuçlarını işleyip ilgili listeleri oluştur
 		animeNames := make([]string, 0, len(searchData))
 		animeTypes := make([]string, 0, len(searchData))
 		animeMap := make(map[string]models.Anime)
@@ -261,7 +228,6 @@ func searchAnime(source models.AnimeSource, uiMode string, rofiFlags string, log
 			animeNames = append(animeNames, item.Title)
 			animeMap[item.Title] = item
 
-			// Anime türünü belirle (tv veya movie)
 			if item.TitleType != nil {
 				ttype := item.TitleType
 				if strings.ToLower(*ttype) == "movie" {
@@ -276,25 +242,21 @@ func searchAnime(source models.AnimeSource, uiMode string, rofiFlags string, log
 	}
 }
 
-// Kullanıcının seçtiği animeyi belirler
 func selectAnime(animeNames []string, searchData []models.Anime, uiMode string, isMovie bool, rofiFlags string, animeTypes []string, logger *utils.Logger) (models.Anime, bool, int) {
 	for {
 		ui.ClearScreen()
 
-		// Kullanıcıdan anime seçimi al
-		selectedAnimeName, err := showSelection(App{uiMode: &uiMode, rofiFlags: &rofiFlags}, animeNames, "Anime seç ")
+		appCtx := App{uiMode: &uiMode, rofiFlags: &rofiFlags, logger: logger}
+		selectedAnimeName, err := showSelection(appCtx, animeNames, "Anime seç ", "", nil)
 		utils.FailIfErr(err, logger)
 
-		// Geçerli bir anime ismi mi kontrol et
 		if !slices.Contains(animeNames, selectedAnimeName) {
 			continue
 		}
 
-		// Seçilen animeyi bul
 		selectedIndex := slices.Index(animeNames, selectedAnimeName)
 		selectedAnime := searchData[selectedIndex]
 
-		// Anime türü (movie / tv) güncelleniyor
 		if len(animeTypes) > 0 {
 			selectedAnimeType := animeTypes[selectedIndex]
 			isMovie = selectedAnimeType == "movie"
@@ -304,23 +266,18 @@ func selectAnime(animeNames []string, searchData []models.Anime, uiMode string, 
 	}
 }
 
-// Seçilen animenin ID veya slug bilgisini döner
 func getAnimeIDs(source models.AnimeSource, selectedAnime models.Anime) (int, string) {
 	var selectedAnimeID int
 	var selectedAnimeSlug string
 
-	// Kaynağa göre ID veya slug alınır
-	if source.Source() == "animecix" {
-		selectedID := selectedAnime.ID
-		selectedAnimeID = *selectedID
-	} else if source.Source() == "openanime" {
-		selectedSlug := selectedAnime.Slug
-		selectedAnimeSlug = *selectedSlug
+	if source.Source() == "animecix" && selectedAnime.ID != nil {
+		selectedAnimeID = *selectedAnime.ID
+	} else if source.Source() == "openanime" && selectedAnime.Slug != nil {
+		selectedAnimeSlug = *selectedAnime.Slug
 	}
 	return selectedAnimeID, selectedAnimeSlug
 }
 
-// Seçilen animeye ait bölümleri getirir, isim listesi oluşturur ve movie olup olmadığını döner
 func getEpisodesAndNames(source models.AnimeSource, isMovie bool, selectedAnimeID int, selectedAnimeSlug string, selectedAnimeName string, logger *utils.Logger) ([]models.Episode, []string, bool, int, error) {
 	var (
 		episodes            []models.Episode
@@ -329,7 +286,6 @@ func getEpisodesAndNames(source models.AnimeSource, isMovie bool, selectedAnimeI
 		err                 error
 	)
 
-	// OpenAnime ise sezon verisini alarak movie olup olmadığını kontrol et
 	if source.Source() == "openanime" {
 		seasonData, err := source.GetSeasonsData(models.SeasonParams{Slug: &selectedAnimeSlug})
 		if err != nil {
@@ -340,7 +296,6 @@ func getEpisodesAndNames(source models.AnimeSource, isMovie bool, selectedAnimeI
 	}
 
 	if !isMovie {
-		// Dizi ise bölüm verilerini al
 		episodes, err = source.GetEpisodesData(models.EpisodeParams{SeasonID: &selectedAnimeID, Slug: &selectedAnimeSlug})
 		if err != nil {
 			return nil, nil, false, 0, fmt.Errorf("bölüm verisi alınamadı: %w", err)
@@ -350,16 +305,13 @@ func getEpisodesAndNames(source models.AnimeSource, isMovie bool, selectedAnimeI
 			return nil, nil, false, 0, fmt.Errorf("hiçbir bölüm bulunamadı")
 		}
 
-		// Bölüm isimlerini listeye ekle
 		episodeNames = make([]string, 0, len(episodes))
 		for _, e := range episodes {
 			episodeNames = append(episodeNames, e.Title)
 		}
 
-		// Sezon indeksini belirle
 		selectedSeasonIndex = int(episodes[0].Extra["season_num"].(float64)) - 1
 	} else {
-		// Film ise sadece tek bir bölüm olarak ayarla
 		episodeNames = []string{selectedAnimeName}
 		episodes = []models.Episode{{
 			Title: selectedAnimeName,
@@ -371,65 +323,53 @@ func getEpisodesAndNames(source models.AnimeSource, isMovie bool, selectedAnimeI
 	return episodes, episodeNames, isMovie, selectedSeasonIndex, nil
 }
 
-// Seçilen animeyi oynatma döngüsünü yönetir.
-// Kullanıcıdan izleme seçenekleri alır, çözünürlük/fansub seçtirir, animeyi oynatır ve Discord RPC'yi günceller.
 func playAnimeLoop(
-	source models.AnimeSource, // Seçilen anime kaynağı (OpenAnime, AnimeciX)
-	selectedSource string, // Seçilen kaynak ismi
-	episodes []models.Episode, // Tüm bölümler
-	episodeNames []string, // Bölüm adları
-	selectedAnimeID int, // Seçilen anime ID'si (AnimeciX için)
-	selectedAnimeSlug string, // Seçilen anime slug'ı (OpenAnime için)
-	selectedAnimeName string, // Seçilen anime ismi
-	isMovie bool, // Film mi yoksa dizi mi olduğunu belirtir
-	selectedSeasonIndex int, // Seçilen sezonun index'i
-	uiMode string, // Arayüz tipi (örneğin terminal, rofi, vs.)
-	rofiFlags string, // Rofi için özel bayraklar
-	posterURL string, // Poster görseli URL'si (Discord RPC için)
-	disableRPC bool, // Discord RPC devre dışı mı?
-	logger *utils.Logger, // Logger
-) (models.AnimeSource, string) { // Geriye güncel kaynak ve kaynak ismi döner
+	source models.AnimeSource,
+	selectedSource string,
+	episodes []models.Episode,
+	episodeNames []string,
+	selectedAnimeID int,
+	selectedAnimeSlug string,
+	selectedAnimeName string,
+	isMovie bool,
+	selectedSeasonIndex int,
+	uiMode string,
+	rofiFlags string,
+	posterURL string,
+	disableRPC bool,
+	logger *utils.Logger,
+) (models.AnimeSource, string) {
 
 	selectedEpisodeIndex := 0
 	selectedFansubIdx := 0
 	selectedResolution := ""
 	selectedResolutionIdx := 0
 
-	// Discord RPC için giriş yap
 	loggedIn, err := rpc.ClientLogin()
 	if err != nil || !loggedIn {
 		logger.LogError(err)
 	}
 
 	for {
-		
-
-		// Kullanıcıya sunulacak menü seçenekleri
 		watchMenu := []string{}
 		if !isMovie {
-			watchMenu = append(watchMenu, "İzle", "Sonraki bölüm", "Önceki bölüm", "Bölüm seç", "Çözünürlük seç")
+			watchMenu = append(watchMenu, "İzle", "Sonraki bölüm", "Önceki bölüm", "Bölüm seç", "Çözünürlük seç", "İndir")
 		} else {
-			watchMenu = append(watchMenu, "İzle", "Çözünürlük seç")
+			watchMenu = append(watchMenu, "İzle", "Çözünürlük seç", "İndir")
 		}
 
-		// OpenAnime için fansub seçimi
 		if strings.ToLower(selectedSource) == "openanime" {
 			watchMenu = append(watchMenu, "Fansub seç")
 		}
 
-		// Genel seçenekler
 		watchMenu = append(watchMenu, "Anime ara", "Çık")
 
-		// Seçim arayüzünü göster
-		option, err := showSelection(App{uiMode: &uiMode, rofiFlags: &rofiFlags}, watchMenu, selectedAnimeName)
+		appCtx := App{uiMode: &uiMode, rofiFlags: &rofiFlags, logger: logger}
+		option, err := showSelection(appCtx, watchMenu, selectedAnimeName, "", nil)
 		utils.FailIfErr(err, logger)
 
 		switch option {
-
-		// Oynatma ve bölüm gezme seçenekleri
 		case "İzle", "Sonraki bölüm", "Önceki bölüm":
-			
-
 			if option == "Sonraki bölüm" {
 				if selectedEpisodeIndex+1 >= len(episodes) {
 					fmt.Println("Zaten son bölümdesiniz.")
@@ -444,10 +384,8 @@ func playAnimeLoop(
 				selectedEpisodeIndex--
 			}
 
-			// Güncel sezon bilgisi al
 			selectedSeasonIndex = int(episodes[selectedEpisodeIndex].Extra["season_num"].(float64)) - 1
 
-			// API'den oynatma bilgilerini güncelle
 			data, _, err := updateWatchAPI(
 				strings.ToLower(selectedSource),
 				episodes,
@@ -468,7 +406,6 @@ func playAnimeLoop(
 			urls := data["urls"].([]string)
 			subtitle := data["caption_url"].(string)
 
-			// Varsayılan çözünürlük seçimi
 			if selectedResolution == "" {
 				selectedResolutionIdx = 0
 				if len(labels) > 0 {
@@ -479,35 +416,30 @@ func playAnimeLoop(
 				selectedResolutionIdx = len(urls) - 1
 			}
 
-			// MPV başlığı ayarla
 			mpvTitle := fmt.Sprintf("%s - %s", selectedAnimeName, episodeNames[selectedEpisodeIndex])
 			if isMovie {
 				mpvTitle = selectedAnimeName
 			}
 
-			// VLC ile oynat
 			cmd, _, err := player.PlayVLC(player.VLCParams{
 				Url:         urls[selectedResolutionIdx],
 				SubtitleUrl: &subtitle,
 				Title:       mpvTitle,
-				VLCPath:     "", // Assuming VLC is in PATH, otherwise specify
+				VLCPath:     "",
 			})
 			if !utils.CheckErr(err, logger) {
 				return source, selectedSource
 			}
 
-			// Discord RPC'yi başlat
 			if !disableRPC {
 				go updateDiscordRPC(episodeNames, selectedEpisodeIndex, selectedAnimeName, selectedSource, posterURL, logger, &loggedIn)
 			}
 
-			// Oynatma işlemi tamamlanana kadar bekle
 			err = cmd.Wait()
 			if err != nil {
 				fmt.Println("VLC çalışırken hata:", err)
 			}
 
-		// Çözünürlük seçme ekranı
 		case "Çözünürlük seç":
 			data, _, err := updateWatchAPI(
 				strings.ToLower(selectedSource),
@@ -525,7 +457,8 @@ func playAnimeLoop(
 				continue
 			}
 			labels := data["labels"].([]string)
-			selected, err := showSelection(App{uiMode: &uiMode, rofiFlags: &rofiFlags}, labels, "Çözünürlük seç ")
+			appCtx := App{uiMode: &uiMode, rofiFlags: &rofiFlags, logger: logger}
+			selected, err := showSelection(appCtx, labels, "Çözünürlük seç ", "", nil)
 			if !utils.CheckErr(err, logger) {
 				continue
 			}
@@ -537,9 +470,9 @@ func playAnimeLoop(
 			}
 			selectedResolutionIdx = slices.Index(labels, selected)
 
-		// Bölüm seçimi
 		case "Bölüm seç":
-			selected, err := showSelection(App{uiMode: &uiMode, rofiFlags: &rofiFlags}, episodeNames, "Bölüm seç ")
+			appCtx := App{uiMode: &uiMode, rofiFlags: &rofiFlags, logger: logger}
+			selected, err := showSelection(appCtx, episodeNames, "Bölüm seç ", "", nil)
 			if !utils.CheckErr(err, logger) {
 				continue
 			}
@@ -552,7 +485,6 @@ func playAnimeLoop(
 				continue
 			}
 
-		// Fansub seçimi (yalnızca OpenAnime için)
 		case "Fansub seç":
 			fansubNames := []string{}
 
@@ -585,7 +517,8 @@ func playAnimeLoop(
 				}
 			}
 
-			selected, err := showSelection(App{uiMode: &uiMode, rofiFlags: &rofiFlags}, fansubNames, "Fansub seç ")
+			appCtx := App{uiMode: &uiMode, rofiFlags: &rofiFlags, logger: logger}
+			selected, err := showSelection(appCtx, fansubNames, "Fansub seç ", "", nil)
 			if !utils.CheckErr(err, logger) {
 				continue
 			}
@@ -597,10 +530,73 @@ func playAnimeLoop(
 			}
 			selectedFansubIdx = slices.Index(fansubNames, selected)
 
-		// Yeni bir anime aramak için menü
+		case "İndir":
+			data, _, err := updateWatchAPI(
+				strings.ToLower(selectedSource),
+				episodes,
+				selectedEpisodeIndex,
+				selectedAnimeID,
+				selectedSeasonIndex,
+				selectedFansubIdx,
+				isMovie,
+				&selectedAnimeSlug,
+			)
+			if err != nil {
+				fmt.Printf("\033[31m[!] İndirme bağlantıları yüklenemedi: %s\033[0m\n", err)
+				time.Sleep(1500 * time.Millisecond)
+				continue
+			}
+
+			labels := data["labels"].([]string)
+			urls := data["urls"].([]string)
+
+			if len(urls) == 0 {
+				fmt.Println("Bu bölüm için indirme bağlantısı bulunamadı.")
+				time.Sleep(1500 * time.Millisecond)
+				continue
+			}
+
+			appCtx := App{uiMode: &uiMode, rofiFlags: &rofiFlags, logger: logger}
+			selectedResolutionLabel, err := showSelection(appCtx, labels, "İndirilecek çözünürlüğü seç ", "", nil)
+			if !utils.CheckErr(err, logger) {
+				continue
+			}
+
+			selectedDownloadIdx := -1
+			for i, label := range labels {
+				if label == selectedResolutionLabel {
+					selectedDownloadIdx = i
+					break
+				}
+			}
+
+			if selectedDownloadIdx == -1 {
+				fmt.Printf("\033[31m[!] Geçersiz çözünürlük seçimi: %s\033[0m\n", selectedResolutionLabel)
+				time.Sleep(1500 * time.Millisecond)
+				continue
+			}
+
+			downloadURL := urls[selectedDownloadIdx]
+			fmt.Printf("İndirme URL'si bulundu: %s\n", downloadURL)
+
+			filename := fmt.Sprintf("%s - E%02d.mp4", selectedAnimeName, episodes[selectedEpisodeIndex].Number)
+			downloadPath := filename
+
+			fmt.Printf("İndiriliyor: %s\n", downloadPath)
+			err = downloader.DownloadFile(downloadURL, downloadPath)
+			if err != nil {
+				fmt.Printf("Dosya indirilirken hata: %v\n", err)
+				time.Sleep(1500 * time.Millisecond)
+				continue
+			}
+
+			fmt.Println("İndirme tamamlandı!")
+			time.Sleep(1500 * time.Millisecond)
+
 		case "Anime ara":
 			for {
-				choice, err := showSelection(App{uiMode: &uiMode, rofiFlags: &rofiFlags}, []string{"Bu kaynakla devam et", "Kaynak değiştir", "Çık"}, fmt.Sprintf("Arama kaynağı: %s", selectedSource))
+				appCtx := App{uiMode: &uiMode, rofiFlags: &rofiFlags, logger: logger}
+				choice, err := showSelection(appCtx, []string{"Bu kaynakla devam et", "Kaynak değiştir", "Çık"}, fmt.Sprintf("Arama kaynağı: %s", selectedSource), "", nil)
 				if err != nil {
 					logger.LogError(fmt.Errorf("seçim listesi oluşturulamadı: %w", err))
 					continue
@@ -608,7 +604,6 @@ func playAnimeLoop(
 
 				switch choice {
 				case "Bu kaynakla devam et":
-					// Hiçbir işlem yapma
 				case "Kaynak değiştir":
 					selectedSource, source = selectSource(uiMode, rofiFlags, logger)
 				case "Çık":
@@ -622,7 +617,6 @@ func playAnimeLoop(
 				return source, selectedSource
 			}
 
-		// Çıkış seçeneği
 		case "Çık":
 			os.Exit(0)
 
@@ -632,9 +626,7 @@ func playAnimeLoop(
 	}
 }
 
-// Discord RPC'yi güncelleyerek anime oynatma durumunu Discord'a yansıtır
 func updateDiscordRPC(episodeNames []string, selectedEpisodeIndex int, selectedAnimeName, selectedSource, posterURL string, logger *utils.Logger, loggedIn *bool) {
-	// Discord RPC'yi başlat
 	if !*loggedIn {
 		var err error
 		*loggedIn, err = rpc.ClientLogin()
@@ -644,10 +636,8 @@ func updateDiscordRPC(episodeNames []string, selectedEpisodeIndex int, selectedA
 		}
 	}
 
-	// Discord'da gösterilecek durum bilgisini oluştur
 	state := fmt.Sprintf("Bölüm %d: %s", selectedEpisodeIndex+1, episodeNames[selectedEpisodeIndex])
 
-	// Discord RPC için parametreleri ayarla ve RPC'yi güncelle
 	var err2 error
 	*loggedIn, err2 = rpc.DiscordRPC(internal.RPCParams{
 		Details:    selectedAnimeName,
@@ -658,13 +648,11 @@ func updateDiscordRPC(episodeNames []string, selectedEpisodeIndex int, selectedA
 		LargeText:  selectedAnimeName,
 	}, *loggedIn)
 
-	// Discord RPC güncelleme hatası varsa logla
 	if err2 != nil {
 		logger.LogError(fmt.Errorf("DiscordRPC hatası: %w", err2))
 	}
 }
 
-// Uygulama durumu ve ayarlarını saklayan struct
 type App struct {
 	source         *models.AnimeSource
 	selectedSource *string
@@ -674,53 +662,46 @@ type App struct {
 	logger         *utils.Logger
 }
 
-// Kullanıcıdan bir seçim almak için kullanılan fonksiyon
-func showSelection(cfx App, list []string, label string) (string, error) {
+func showSelection(cfx App, list []string, label string, promptType string, data interface{}) (string, error) {
 	return ui.SelectionList(internal.UiParams{
 		Mode:      *cfx.uiMode,
 		RofiFlags: cfx.rofiFlags,
 		List:      &list,
 		Label:     label,
+		Type:      promptType,
+		Data:      data,
 		Logger:    cfx.logger,
 	})
 }
 
-// Uygulamanın ana fonksiyonu, anime seçimi, oynatma ve hata yönetimini içerir
 func app(cfx *App) error {
 	for {
-		// Anime arama işlemi yapılır
 		searchData, animeNames, animeTypes, _ := searchAnime(*cfx.source, *cfx.uiMode, *cfx.rofiFlags, cfx.logger)
 		isMovie := false
-		// Kullanıcıdan anime seçimi yapılması istenir
 		selectedAnime, isMovie, _ := selectAnime(animeNames, searchData, *cfx.uiMode, isMovie, *cfx.rofiFlags, animeTypes, cfx.logger)
 
-		// Poster URL'si alınır ve geçersizse varsayılan bir URL kullanılır
 		posterURL := selectedAnime.ImageURL
 		if !utils.IsValidImage(posterURL) {
 			posterURL = "anitrcli"
 		}
 
-		// Seçilen animeye ait ID ve slug alınır
 		selectedAnimeID, selectedAnimeSlug := getAnimeIDs(*cfx.source, selectedAnime)
 
-		// Anime bölümleri alınır
 		episodes, episodeNames, isMovie, selectedSeasonIndex, err := getEpisodesAndNames(
 			*cfx.source, isMovie, selectedAnimeID, selectedAnimeSlug, selectedAnime.Title, cfx.logger,
 		)
 
-		// Hata durumunda kullanıcıya seçenek sunulur
 		if err != nil {
 			cfx.logger.LogError(err)
 
-			choice, err := showSelection(App{uiMode: cfx.uiMode, rofiFlags: cfx.rofiFlags}, []string{"Farklı Anime Ara", "Kaynak Değiştir", "Çık"}, fmt.Sprintf("Hata: %s", err.Error()))
+			choice, err := showSelection(*cfx, []string{"Farklı Anime Ara", "Kaynak Değiştir", "Çık"}, fmt.Sprintf("Hata: %s", err.Error()), "", nil)
 			if err != nil {
 				os.Exit(0)
 			}
 
-			// Kullanıcının seçimine göre işlem yapılır
 			switch choice {
 			case "Farklı Anime Ara":
-				return nil // Üst döngüye geri dön
+				return nil
 			case "Kaynak Değiştir":
 				selectedSource, source := selectSource(*cfx.uiMode, *cfx.rofiFlags, cfx.logger)
 				cfx.selectedSource = utils.Ptr(selectedSource)
@@ -731,7 +712,6 @@ func app(cfx *App) error {
 			}
 		}
 
-		// Oynatma döngüsüne girilir
 		newSource, newSelectedSource := playAnimeLoop(
 			*cfx.source, *cfx.selectedSource, episodes, episodeNames,
 			selectedAnimeID, selectedAnimeSlug, selectedAnime.Title,
@@ -739,7 +719,6 @@ func app(cfx *App) error {
 			posterURL, *cfx.disableRPC, cfx.logger,
 		)
 
-		// Kaynak değiştiyse güncellenir
 		if newSource != *cfx.source || newSelectedSource != *cfx.selectedSource {
 			cfx.source = &newSource
 			cfx.selectedSource = &newSelectedSource
@@ -748,12 +727,9 @@ func app(cfx *App) error {
 	}
 }
 
-// Ana uygulama döngüsünü yöneten fonksiyon
 func runMain(f *flags.Flags, uiMode string, logger *utils.Logger) {
-	// RPC'yi devre dışı bırakma bayrağı ayarlanır
 	disableRPC := f.DisableRPC
 
-	// Uygulama durumunu başlat
 	currentApp := &App{
 		source:         nil,
 		selectedSource: utils.Ptr(""),
@@ -764,23 +740,140 @@ func runMain(f *flags.Flags, uiMode string, logger *utils.Logger) {
 	}
 
 	for {
-		// Eğer kaynak seçilmemişse, kaynak seçme işlemi yapılır
 		if currentApp.source == nil {
 			selectedSource, source := selectSource(uiMode, f.RofiFlags, logger)
 			currentApp.selectedSource = utils.Ptr(selectedSource)
 			currentApp.source = utils.Ptr(source)
 		}
 
-		// Uygulama fonksiyonu çağrılır
 		if err := app(currentApp); err != nil {
-			// Hata durumunda loglanır ve kaynak sıfırlanır
 			logger.LogError(err)
 			currentApp.source = nil
 		}
 	}
 }
 
-// Uygulama komutlarını çalıştıran giriş fonksiyonu
+var downloadCmd = &cobra.Command{
+	Use:   "download [anime_title] [episode_number]",
+	Short: "Downloads an anime episode",
+	Args:  cobra.ExactArgs(2),
+	Run: func(cmd *cobra.Command, args []string) {
+		animeTitle := args[0]
+		episodeNumberStr := args[1]
+		episodeNumber, err := strconv.Atoi(episodeNumberStr)
+		if err != nil {
+			fmt.Printf("Error: Invalid episode number '%s'\n", episodeNumberStr)
+			os.Exit(1)
+		}
+
+		logger, err := utils.NewLogger()
+		if err != nil {
+			panic(err)
+		}
+		defer logger.Close()
+
+		fmt.Printf("Attempting to download %s episode %d...\n", animeTitle, episodeNumber)
+
+		animeSource := animecix.AnimeCix{}
+		searchData, err := animeSource.GetSearchData(animeTitle)
+		if err != nil {
+			fmt.Printf("Error searching for anime: %v\n", err)
+			os.Exit(1)
+		}
+		if len(searchData) == 0 {
+			fmt.Printf("No anime found for '%s'\n", animeTitle)
+			os.Exit(1)
+		}
+
+		selectedAnime := searchData[0]
+		selectedAnimeID := *selectedAnime.ID
+
+		episodes, _, _, _, err := getEpisodesAndNames(
+			animeSource,
+			false,
+			selectedAnimeID,
+			"",
+			selectedAnime.Title,
+			logger,
+		)
+		if err != nil {
+			fmt.Printf("Error getting episodes: %v\n", err)
+			os.Exit(1)
+		}
+
+		var targetEpisode models.Episode
+		foundEpisode := false
+		for _, ep := range episodes {
+			if ep.Number == episodeNumber {
+				targetEpisode = ep
+				foundEpisode = true
+				break
+			}
+		}
+
+		if !foundEpisode {
+			fmt.Printf("Episode %d not found for %s\n", episodeNumber, animeTitle)
+			os.Exit(1)
+		}
+
+		episodeIndex := -1
+		for i, ep := range episodes {
+			if ep.ID == targetEpisode.ID {
+				episodeIndex = i
+				break
+			}
+		}
+
+		if episodeIndex == -1 {
+			fmt.Printf("Could not find internal index for episode %d\n", episodeNumber)
+			os.Exit(1)
+		}
+
+		seasonNum, ok := targetEpisode.Extra["season_num"].(float64)
+		if !ok {
+			fmt.Printf("Error: Could not determine season number for episode %d\n", episodeNumber)
+			os.Exit(1)
+		}
+		seasonIndex := int(seasonNum) - 1
+
+		watchData, _, err := updateWatchAPI(
+			"animecix",
+			episodes,
+			episodeIndex,
+			selectedAnimeID,
+			seasonIndex,
+			0,
+			false,
+			nil,
+		)
+		if err != nil {
+			fmt.Printf("Error getting watch data: %v\n", err)
+			os.Exit(1)
+		}
+
+		urls := watchData["urls"].([]string)
+		if len(urls) == 0 {
+			fmt.Println("No video URLs found for this episode.")
+			os.Exit(1)
+		}
+
+		downloadURL := urls[0]
+		fmt.Printf("Found download URL: %s\n", downloadURL)
+
+		filename := fmt.Sprintf("%s - E%02d.mp4", selectedAnime.Title, episodeNumber)
+		downloadPath := filename
+
+		fmt.Printf("Downloading to: %s\n", downloadPath)
+		err = downloader.DownloadFile(downloadURL, downloadPath)
+		if err != nil {
+			fmt.Printf("Error downloading file: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Println("Download complete!")
+	},
+}
+
 func runApp() {
 	logger, err := utils.NewLogger()
 	if err != nil {
@@ -791,16 +884,16 @@ func runApp() {
 
 	rootCmd, f := flags.NewFlagsCmd()
 
+	rootCmd.AddCommand(downloadCmd)
+
 	commands := rootCmd.Commands()
 
 	if runtime.GOOS != "linux" {
-		// Windows ve Mac'te alt komut yok, doğrudan tui modunda çalıştır
 		rootCmd.Run = func(cmd *cobra.Command, args []string) {
 			f.RofiMode = false
 			runMain(f, "tui", logger)
 		}
 	} else {
-		// Linux için alt komutlar varsa ayarla
 		var rofiCmd, tuiCmd *cobra.Command
 		if len(commands) > 0 {
 			rofiCmd = commands[0]
@@ -836,6 +929,5 @@ func runApp() {
 }
 
 func main() {
-	// Uygulamayı başlat
 	runApp()
 }

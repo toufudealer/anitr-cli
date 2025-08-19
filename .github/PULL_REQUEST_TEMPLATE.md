@@ -2,6 +2,10 @@
 
 Eklenen, değiştirilen, kaldırılan veya düzeltilen şeyleri açıkça belirtin.
 
-## 📌 Sebep?
+mpvden vlcye geçtim
+animeleri indirme seçeneği ekledim
+linux macosu kaldırdım
 
+## 📌 Sebep?
 Bu değişikliklerin arkasındaki nedeni veya bağlamı açıklayın.
+keyfi

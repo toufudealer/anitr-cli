@@ -19,11 +19,13 @@ type Config struct {
 
 // UiParams, UI (kullanıcı arayüzü) ile ilgili parametreleri temsil eder.
 type UiParams struct {
-	Mode      string    // Arayüz modu: "rofi" veya "tui"
-	List      *[]string // Liste halinde kullanıcıya gösterilecek seçenekler
-	Label     string    // UI öğesi için başlık/etiket
-	RofiFlags *string   // Rofi'ye özel ek parametreler (varsa)
+	Mode      string        // Arayüz modu: "rofi" veya "tui"
+	List      *[]string     // Liste halinde kullanıcıya gösterilecek seçenekler
+	Label     string        // UI öğesi için başlık/etiket
+	RofiFlags *string       // Rofi'ye özel ek parametreler (varsa)
 	Logger    *utils.Logger // Logger instance for logging errors
+	Type      string        // Listenin türü (örn: "episode", "anime", "generic")
+	Data      interface{}   // Listeye özel veriler (örn: []models.Episode)
 }
 
 // RPCParams, Discord Rich Presence için gönderilecek bilgileri içerir.
