@@ -20,7 +20,6 @@ import (
 	"github.com/xeyossr/anitr-cli/internal/sources/animecix"
 	"github.com/xeyossr/anitr-cli/internal/sources/openanime"
 	"github.com/xeyossr/anitr-cli/internal/ui"
-	"github.com/xeyossr/anitr-cli/internal/update"
 	"github.com/xeyossr/anitr-cli/internal/utils"
 )
 
@@ -754,9 +753,6 @@ func app(cfx *App) error {
 func runMain(f *flags.Flags, uiMode string, logger *utils.Logger) {
 	// RPC'yi devre dışı bırakma bayrağı ayarlanır
 	disableRPC := f.DisableRPC
-
-	// Güncellemeleri kontrol et
-	update.CheckUpdates()
 
 	// Uygulama durumunu başlat
 	currentApp := &App{

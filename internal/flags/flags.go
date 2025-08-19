@@ -4,7 +4,6 @@ import (
 	"runtime"
 
 	"github.com/spf13/cobra"
-	"github.com/xeyossr/anitr-cli/internal/update"
 )
 
 type Flags struct {
@@ -34,8 +33,12 @@ func NewFlagsCmd() (*cobra.Command, *Flags) {
 
 	cmd.PersistentFlags().StringVar(&f.VLCPath, "vlc-path", "", "VLC oynatıcısının tam yolunu belirtir.")
 
-	cmd.SetVersionTemplate(update.Version())
-	cmd.Version = update.Version()
+		cmd.SetVersionTemplate(`anitr-cli dev
+Lisans: GPL 3.0 (Özgür Yazılım)
+
+Go sürümü: unknown
+`)
+	cmd.Version = "dev"
 
 	if runtime.GOOS == "linux" {
 		// Linux'ta rofi ve tui alt komutları eklenir
