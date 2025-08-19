@@ -210,9 +210,6 @@ func updateWatchAPI(
 // Kullanıcıdan kaynak seçmesini isteyen fonksiyon
 func selectSource(uiMode string, rofiFlags string, logger *utils.Logger) (string, models.AnimeSource) {
 	for {
-		// Ekranı temizle
-		ui.ClearScreen()
-
 		// Mevcut kaynaklar
 		sourceList := []string{"OpenAnime", "AnimeciX"}
 
@@ -241,7 +238,7 @@ func selectSource(uiMode string, rofiFlags string, logger *utils.Logger) (string
 func searchAnime(source models.AnimeSource, uiMode string, rofiFlags string, logger *utils.Logger) ([]models.Anime, []string, []string, map[string]models.Anime) {
 	for {
 		// Kullanıcıdan arama kelimesi al
-		query, err := ui.InputFromUser(internal.UiParams{Mode: uiMode, RofiFlags: &rofiFlags, Label: "Anime ara "})
+		query, err := ui.InputFromUser(internal.UiParams{Mode: uiMode, RofiFlags: &rofiFlags, Label: "Anime ara ", Logger: logger})
 		utils.FailIfErr(err, logger)
 
 		// API üzerinden arama yap
@@ -336,6 +333,7 @@ func getEpisodesAndNames(source models.AnimeSource, isMovie bool, selectedAnimeI
 	if source.Source() == "openanime" {
 		seasonData, err := source.GetSeasonsData(models.SeasonParams{Slug: &selectedAnimeSlug})
 		if err != nil {
+			logger.LogError(err)
 			return nil, nil, false, 0, fmt.Errorf("sezon verisi alınamadı: %w", err)
 		}
 		isMovie = *seasonData[0].IsMovie
@@ -404,7 +402,7 @@ func playAnimeLoop(
 	}
 
 	for {
-		ui.ClearScreen()
+		
 
 		// Kullanıcıya sunulacak menü seçenekleri
 		watchMenu := []string{}
@@ -430,7 +428,7 @@ func playAnimeLoop(
 
 		// Oynatma ve bölüm gezme seçenekleri
 		case "İzle", "Sonraki bölüm", "Önceki bölüm":
-			ui.ClearScreen()
+			
 
 			if option == "Sonraki bölüm" {
 				if selectedEpisodeIndex+1 >= len(episodes) {
@@ -683,6 +681,7 @@ func showSelection(cfx App, list []string, label string) (string, error) {
 		RofiFlags: cfx.rofiFlags,
 		List:      &list,
 		Label:     label,
+		Logger:    cfx.logger,
 	})
 }
 

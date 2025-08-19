@@ -36,11 +36,11 @@ var (
 	highlightStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color(highlightFgColor)).
 			Bold(true).
-			Padding(0, 1)
+			Padding(0, 2)
 
 	normalStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color(normalFgColor)).
-			Padding(0, 1)
+			Padding(0, 2)
 )
 
 // listItem, list elemanlarının türüdür
@@ -196,6 +196,9 @@ func SelectionList(params internal.UiParams) (string, error) {
 	p := tea.NewProgram(NewSelectionListModel(params), tea.WithAltScreen())
 	m, err := p.Run()
 	if err != nil {
+		if params.Logger != nil {
+			params.Logger.LogError(fmt.Errorf("bubbletea p.Run() error in SelectionList: %w", err))
+		}
 		return "", err
 	}
 	model := m.(SelectionListModel)
@@ -270,10 +273,13 @@ func (m InputFromUserModel) View() string {
 // InputFromUser, kullanıcıdan giriş alır
 func InputFromUser(params internal.UiParams) (string, error) {
 	// Yeni bir program başlat ve kullanıcıdan giriş al
-	p := tea.NewProgram(NewInputFromUserModel(params))
+	p := tea.NewProgram(NewInputFromUserModel(params), tea.WithAltScreen())
 	m, err := p.Run()
 
 	if err != nil {
+		if params.Logger != nil {
+			params.Logger.LogError(fmt.Errorf("bubbletea p.Run() error in InputFromUser: %w", err))
+		}
 		return "", err
 	}
 

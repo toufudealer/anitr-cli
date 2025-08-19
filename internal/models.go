@@ -1,4 +1,3 @@
-// Package internal, uygulama genelinde kullanılan ortak yapı ve yardımcı işlevleri içerir.
 package internal
 
 import (
@@ -6,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
+	"github.com/xeyossr/anitr-cli/internal/utils"
 )
 
 // Config, uygulamanın temel yapılandırma ayarlarını temsil eder.
@@ -22,6 +23,7 @@ type UiParams struct {
 	List      *[]string // Liste halinde kullanıcıya gösterilecek seçenekler
 	Label     string    // UI öğesi için başlık/etiket
 	RofiFlags *string   // Rofi'ye özel ek parametreler (varsa)
+	Logger    *utils.Logger // Logger instance for logging errors
 }
 
 // RPCParams, Discord Rich Presence için gönderilecek bilgileri içerir.
