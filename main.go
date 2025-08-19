@@ -531,10 +531,24 @@ func playAnimeLoop(
 			selectedFansubIdx = slices.Index(fansubNames, selected)
 
 		case "İndir":
+			downloadEpisodeIndex := selectedEpisodeIndex
+			if !isMovie {
+				appCtx := App{uiMode: &uiMode, rofiFlags: &rofiFlags, logger: logger}
+				selected, err := showSelection(appCtx, episodeNames, "İndirilecek bölümü seç ", "", nil)
+				if !utils.CheckErr(err, logger) {
+					continue
+				}
+				if slices.Contains(episodeNames, selected) {
+					downloadEpisodeIndex = slices.Index(episodeNames, selected)
+				} else {
+					continue
+				}
+			}
+
 			data, _, err := updateWatchAPI(
 				strings.ToLower(selectedSource),
 				episodes,
-				selectedEpisodeIndex,
+				downloadEpisodeIndex,
 				selectedAnimeID,
 				selectedSeasonIndex,
 				selectedFansubIdx,
@@ -579,7 +593,7 @@ func playAnimeLoop(
 			downloadURL := urls[selectedDownloadIdx]
 			fmt.Printf("İndirme URL'si bulundu: %s\n", downloadURL)
 
-			filename := fmt.Sprintf("%s - E%02d.mp4", selectedAnimeName, episodes[selectedEpisodeIndex].Number)
+			filename := fmt.Sprintf("%s - E%02d.mp4", selectedAnimeName, episodes[downloadEpisodeIndex].Number)
 			downloadPath := filename
 
 			fmt.Printf("İndiriliyor: %s\n", downloadPath)
