@@ -18,14 +18,14 @@ import (
 
 // Renkler ve stil ayarları
 var (
-	highlightFgColor = "#e45cc0"
-	normalFgColor    = "#aabbcc"
-	highlightColor   = "#e45cc0"
-	filterInputFg    = "#8bb27f"
-	filterCursorFg   = "#c4b48b"
-	inputPromptFg    = "#c4b48b"
-	inputTextFg      = "#aabbcc"
-	inputCursorFg    = "#c4b48b"
+	highlightFgColor = "#33ccbb" 
+	normalFgColor    = "#f0f0f0" 
+	highlightColor   = "#33ccbb" 
+	filterInputFg    = "#ff007f" 
+	filterCursorFg   = "#ff007f" 
+	inputPromptFg    = "#33ccbb" 
+	inputTextFg      = "#f0f0f0" 
+	inputCursorFg    = "#ff007f" 
 	selectionMark    = "▸ "
 
 	pinkHighlight = lipgloss.NewStyle().Foreground(lipgloss.Color(highlightColor))
