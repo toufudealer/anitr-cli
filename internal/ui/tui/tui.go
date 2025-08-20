@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sort"
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -44,20 +45,24 @@ var (
 )
 
 // listItem, list elemanlarının türüdür
-type listItem string
+type listItem struct {
+	title    string
+	selected bool
+}
 
 // Title, listItem için başlık döndürür
-func (i listItem) Title() string { return string(i) }
+func (i listItem) Title() string { return i.title }
 
 // Description, listItem için açıklama döndürür (bu örnekte boş)
 func (i listItem) Description() string { return "" }
 
 // FilterValue, listItem için filtre değeri döndürür
-func (i listItem) FilterValue() string { return string(i) }
+func (i listItem) FilterValue() string { return i.title }
 
 // slimDelegate, listDelegate'in bir özelleştirilmiş versiyonudur
 type slimDelegate struct {
 	list.DefaultDelegate
+	multiSelect bool
 }
 
 // Height, item'in yüksekliğini döndürür
@@ -68,26 +73,34 @@ func (d slimDelegate) Spacing() int { return 0 }
 
 // Render, item'in nasıl render edileceğini belirler
 func (d slimDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
-	title := ""
-	if li, ok := item.(listItem); ok {
-		title = li.Title()
-	} else {
-		title = "???"
+	i, ok := item.(listItem)
+	if !ok {
+		return
+	}
+
+	prefix := ""
+	if d.multiSelect {
+		checkbox := "[ ]"
+		if i.selected {
+			checkbox = "[x]"
+		}
+		prefix = fmt.Sprintf("%s ", checkbox)
 	}
 
 	// Seçili olup olmadığını kontrol et
 	isSelected := index == m.Index()
 
-	prefix := "  "
 	if isSelected {
-		prefix = selectionMark
+		prefix = selectionMark + prefix
+	} else {
+		prefix = "  " + prefix
 	}
 
 	// Alan genişliğini hesapla
 	availableWidth := m.Width() - lipgloss.Width(prefix) - 4
 
 	// Başlık, taşma durumuna göre kısaltılır
-	displayTitle := truncate.StringWithTail(title, uint(availableWidth), "...")
+	displayTitle := truncate.StringWithTail(i.title, uint(availableWidth), "...")
 
 	// Satırı oluştur
 	line := prefix + displayTitle
@@ -105,28 +118,28 @@ func (d slimDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 
 // SelectionListModel, seçim listesini tutan modeldir
 type SelectionListModel struct {
-	list     list.Model
-	quitting bool
-	selected string
-	err      error
-	width    int
+	list         list.Model
+	quitting     bool
+	selected     []string
+	selectedMap  map[string]struct{}
+	multiSelect  bool // Add this field
+	err          error
+	width        int
 }
 
 // NewSelectionListModel, yeni bir SelectionListModel oluşturur
 func NewSelectionListModel(params internal.UiParams) SelectionListModel {
-	// Seçenekleri listeye ekle
 	items := make([]list.Item, len(*params.List))
 	for i, v := range *params.List {
-		items[i] = listItem(v)
+		items[i] = listItem{title: v, selected: false}
 	}
 
-	// Listeyi başlat
 	const defaultWidth = 48
 	const defaultHeight = 20
 
-	l := list.New(items, slimDelegate{}, defaultWidth, defaultHeight)
+	multiSelect := params.Type == "multi-select"
+	l := list.New(items, slimDelegate{multiSelect: multiSelect}, defaultWidth, defaultHeight)
 
-	// Başlık stilini ayarla
 	titleStyle := lipgloss.NewStyle().
 		Align(lipgloss.Center).
 		Bold(true)
@@ -136,14 +149,15 @@ func NewSelectionListModel(params internal.UiParams) SelectionListModel {
 	l.SetFilteringEnabled(true)
 	l.SetShowHelp(true)
 
-	// Filtreleme giriş stilini ayarla
 	l.FilterInput.Prompt = pinkHighlight.Render("🔍 Search: ")
 	l.FilterInput.Placeholder = "Ara..."
 	l.FilterInput.TextStyle = filterInputStyle
 	l.FilterInput.Cursor.Style = lipgloss.NewStyle().Foreground(lipgloss.Color(filterCursorFg))
 
 	return SelectionListModel{
-		list: l,
+		list:        l,
+		selectedMap: make(map[string]struct{}),
+		multiSelect: params.Type == "multi-select", // Set based on param
 	}
 }
 
@@ -156,20 +170,39 @@ func (m SelectionListModel) Init() tea.Cmd {
 func (m SelectionListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		// Pencere boyutu değiştiğinde listeyi yeniden boyutlandır
 		m.width = msg.Width
 		m.list.SetSize(msg.Width, msg.Height)
 		return m, nil
 
 	case tea.KeyMsg:
-		// Tuşlara göre işlem yap
 		switch msg.String() {
 		case "enter":
-			if i, ok := m.list.SelectedItem().(listItem); ok {
-				m.selected = string(i)
+			if m.multiSelect {
+				for k := range m.selectedMap {
+					m.selected = append(m.selected, k)
+				}
+			} else {
+				if i, ok := m.list.SelectedItem().(listItem); ok {
+					m.selected = []string{i.title}
+				}
 			}
+			sort.Strings(m.selected)
 			m.quitting = true
 			return m, tea.Quit
+
+		case " ": // Handle spacebar for multi-selection
+			if m.multiSelect {
+				if i, ok := m.list.SelectedItem().(listItem); ok {
+					if _, found := m.selectedMap[i.title]; found {
+						delete(m.selectedMap, i.title)
+						i.selected = false
+					} else {
+						m.selectedMap[i.title] = struct{}{} // Add to map
+						i.selected = true
+					}
+					m.list.SetItem(m.list.Index(), i)
+				}
+			}
 
 		case "ctrl+c", "esc", "q":
 			m.err = utils.ErrQuit
@@ -191,7 +224,7 @@ func (m SelectionListModel) View() string {
 }
 
 // SelectionList, bir seçim listesi gösterir ve kullanıcının seçimini döner
-func SelectionList(params internal.UiParams) (string, error) {
+func SelectionList(params internal.UiParams) ([]string, error) { // Changed return type to []string
 	// Yeni bir program başlat ve seçimi al
 	p := tea.NewProgram(NewSelectionListModel(params), tea.WithAltScreen())
 	m, err := p.Run()
@@ -199,13 +232,13 @@ func SelectionList(params internal.UiParams) (string, error) {
 		if params.Logger != nil {
 			params.Logger.LogError(fmt.Errorf("bubbletea p.Run() error in SelectionList: %w", err))
 		}
-		return "", err
+		return nil, err // Return nil slice on error
 	}
 	model := m.(SelectionListModel)
 	if model.err != nil {
-		return "", model.err
+		return nil, model.err // Return nil slice on error
 	}
-	return model.selected, nil
+	return model.selected, nil // Return the slice of selected items
 }
 
 // InputFromUserModel, kullanıcıdan giriş almak için kullanılan modeldir

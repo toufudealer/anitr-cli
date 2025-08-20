@@ -19,18 +19,18 @@ func ClearScreen() {
 
 // Kullanıcıya seçim listesi gösterir
 // Mode rofi ise rofi arayüzü, değilse tui kullanılır
-func SelectionList(params internal.UiParams) (string, error) {
+func SelectionList(params internal.UiParams) ([]string, error) {
 	if params.Mode == "rofi" {
 		response, err := rofi.SelectionList(params)
 		if err != nil {
-			return "", fmt.Errorf("rofi seçim listesi oluşturulamadı: %w", err)
+			return nil, fmt.Errorf("rofi seçim listesi oluşturulamadı: %w", err)
 		}
-		return response, nil
+		return []string{response}, nil // Wrap single string in a slice
 	}
 
 	response, err := tui.SelectionList(params)
 	if err != nil {
-		return "", fmt.Errorf("tui seçim listesi oluşturulamadı: %w", err)
+		return nil, fmt.Errorf("tui seçim listesi oluşturulamadı: %w", err)
 	}
 	return response, nil
 }
