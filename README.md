@@ -26,7 +26,7 @@
 --- 
 ## ✨ Bu Fork'un Farkları
 
--   **Windows Odaklı Geliştirme**: Proje, özellikle Windows işletim sistemi için optimize edilmiştir. Windows'a özgü IPC (Inter-Process Communication) mekanizmaları ve VLC yürütülebilir dosya yolu (`vlc.exe`) gibi detaylar Windows ortamında sorunsuz çalışacak şekilde ayarlanmıştır. Orijinal proje daha çok Linux/macOS platformlarına odaklanmıştır.
+-   **Windows Odaklı Geliştirme**: Proje, özellikle Windows işletim sistemi için optimize edilmiştir. Windows'a özgü IPC (Inter-Process Communication) mekanizmaları ve VLC yürütülebilir dosya yolu (`vlc.exe`) gibi detaylar Windows ortamında sorunsuz çalışacak şekilde ayarlanmıştır. Orijinal proje daha çok Linux platformuna odaklanmıştır.
 
 -   **İndirme Özelliği**: Animecix kaynağı üzerinden anime indirme özelliği eklenmiştir. Orijinal projenin aksine, bu fork indirme işlemini harici bir araç (örn. `yt-dlp`) kullanmadan doğrudan gerçekleştirir ve indirme sırasında ilerleme çubuğu gösterir.
 -   **Tema Farkı**: Terminal arayüzünün (TUI) teması "Hatsune Miku" renk paletine göre yeniden düzenlenmiştir.
