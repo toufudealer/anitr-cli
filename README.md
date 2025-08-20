@@ -22,12 +22,16 @@
 
 ## 🎬 Özellikler
 
-- **Platform**: Bu fork özellikle Windows için geliştirilmiştir linux ve macos için denemedim.
-- **AnimeCix ve OpenAnime Entegrasyonu**: Popüler anime platformlarından hızlı arama ve izleme imkanı.
-- **Fansub Seçimi**: OpenAnime üzerinden izlerken favori çeviri grubunuzu seçme özgürlüğü.
-- **Çoklu Arayüz Desteği**: Terminal tabanlı TUI ve minimalist grafik arayüz (Rofi UI) seçenekleri.
-- **Discord Rich Presence**: İzlediğiniz animeyi Discord profilinizde paylaşın.
-- **İndirme Özelliği**: Animecix kaynağı üzerinden animeleri indirebilirsiniz.
+---
+--- 
+## ✨ Bu Fork'un Farkları
+
+-   **Windows Odaklı Geliştirme**: Proje, özellikle Windows işletim sistemi için optimize edilmiştir. Windows'a özgü IPC (Inter-Process Communication) mekanizmaları ve VLC yürütülebilir dosya yolu (`vlc.exe`) gibi detaylar Windows ortamında sorunsuz çalışacak şekilde ayarlanmıştır. Orijinal proje daha çok Linux/macOS platformlarına odaklanmıştır.
+
+-   **İndirme Özelliği**: Animecix kaynağı üzerinden anime indirme özelliği eklenmiştir. Orijinal projenin aksine, bu fork indirme işlemini harici bir araç (örn. `yt-dlp`) kullanmadan doğrudan gerçekleştirir ve indirme sırasında ilerleme çubuğu gösterir.
+-   **Tema Farkı**: Terminal arayüzünün (TUI) teması "Hatsune Miku" renk paletine göre yeniden düzenlenmiştir.
+-   **VLC Entegrasyonu**: Video oynatıcı olarak MPV yerine VLC Media Player entegre edilmiştir.
+-   **Rofi Arayüzü Değişikliği**: Orijinal projede `--rofi` bayrağı ile kullanılan Rofi arayüzü, bu fork'ta ayrı bir `rofi` alt komutu olarak yeniden düzenlenmiştir ve sadece Linux ortamında kullanılabilir.
 
 --- 
 
