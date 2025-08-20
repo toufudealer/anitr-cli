@@ -30,17 +30,32 @@ func DiscordRPC(params internal.RPCParams, loggedIn bool) (bool, error) {
 	}
 
 	// Discord aktivitesini ayarla
+	activityDetails := params.AnimeTitle // Details will always be the AnimeTitle
+
+	activityState := ""
+	if params.CurrentEpisode > 0 && params.TotalEpisodes > 0 {
+		activityState = fmt.Sprintf("Bölüm %d / %d - %s", params.CurrentEpisode, params.TotalEpisodes, params.EpisodeTitle)
+	} else if params.CurrentEpisode > 0 {
+		activityState = fmt.Sprintf("Bölüm %d - %s", params.CurrentEpisode, params.EpisodeTitle)
+	} else if params.EpisodeTitle != "" {
+		activityState = params.EpisodeTitle // Fallback to EpisodeTitle if no episode numbers
+	}
+
 	err := client.SetActivity(client.Activity{
-		State:      params.State,      // Aktivite durumu
-		Details:    params.Details,    // Aktivite detayları
+		State:      activityState,     // Aktivite durumu
+		Details:    activityDetails,   // Aktivite detayları
 		LargeImage: params.LargeImage, // Büyük resim
 		LargeText:  params.LargeText,  // Büyük resim açıklaması
 		SmallImage: params.SmallImage, // Küçük resim
 		SmallText:  params.SmallText,  // Küçük resim açıklaması
 		Buttons: []*client.Button{ // Butonlar
 			{
+				Label: "MyAnimeList",
+				Url:   params.MyAnimeListURL, // MyAnimeList bağlantısı
+			},
+			{
 				Label: "GitHub",
-				Url:   "https://github.com/xeyossr/anitr-cli", // GitHub bağlantısı
+				Url:   "https://github.com/toufudealer/anitr-cli", // GitHub bağlantısı
 			},
 		},
 	})
@@ -54,37 +69,43 @@ func DiscordRPC(params internal.RPCParams, loggedIn bool) (bool, error) {
 		}
 
 		err = client.SetActivity(client.Activity{
-    	        State:      params.State,
-        	    Details:    params.Details,
-            	LargeImage: params.LargeImage,
-	            LargeText:  params.LargeText,
-    	        SmallImage: params.SmallImage,
-        	    SmallText:  params.SmallText,
-            	Buttons: []*client.Button{
-                	{
-                    	Label: "GitHub",
-	                    Url:   "https://github.com/xeyossr/anitr-cli",
-    	           	},
-        		},
-        	})
+			State:      activityState,
+			Details:    activityDetails,
+			LargeImage: params.LargeImage,
+			LargeText:  params.LargeText,
+			SmallImage: params.SmallImage,
+			SmallText:  params.SmallText,
+			Buttons: []*client.Button{
+				{
+					Label: "MyAnimeList",
+					Url:   params.MyAnimeListURL,
+				},
+				{
+					Label: "GitHub",
+					Url:   "https://github.com/toufudealer/anitr-cli",
+				},
+			},
+		})
 
-        if err != nil {
-            return false, fmt.Errorf("discord rpc retry setactivity başarısız: %v", err)
-        }
-	
-        loggedIn = true
+		if err != nil {
+			return false, fmt.Errorf("discord rpc retry setactivity başarısız: %v", err)
+		}
+
+		loggedIn = true
 	}
 
 	return loggedIn, nil // Başarılı RPC güncellemesi
 }
 
 // RPCDetails, Discord RPC için gerekli parametreleri hazırlar ve döner.
-func RPCDetails(details, state, largeimg, largetext string) internal.RPCParams {
+func RPCDetails(animeTitle, episodeTitle string, currentEpisode, totalEpisodes int, largeimg, largetext string) internal.RPCParams {
 	// RPC parametrelerini yapılandır
 	return internal.RPCParams{
-		Details:    details,
-		State:      state,
-		LargeImage: largeimg,
-		LargeText:  largetext,
+		AnimeTitle:    animeTitle,
+		EpisodeTitle:  episodeTitle,
+		CurrentEpisode: currentEpisode,
+		TotalEpisodes:  totalEpisodes,
+		LargeImage:    largeimg,
+		LargeText:     largetext,
 	}
 }

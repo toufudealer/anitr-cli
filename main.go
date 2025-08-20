@@ -22,6 +22,7 @@ import (
 	"github.com/xeyossr/anitr-cli/internal/sources/openanime"
 	"github.com/xeyossr/anitr-cli/internal/ui"
 	"github.com/xeyossr/anitr-cli/internal/utils"
+	"github.com/xeyossr/anitr-cli/internal/history" // Import the new history package
 )
 
 func updateWatchAPI(
@@ -331,6 +332,7 @@ func getEpisodesAndNames(source models.AnimeSource, isMovie bool, selectedAnimeI
 }
 
 func playAnimeLoop(
+	cfx App, // Pass the App context
 	source models.AnimeSource,
 	selectedSource string,
 	episodes []models.Episode,
@@ -345,6 +347,7 @@ func playAnimeLoop(
 	posterURL string,
 	disableRPC bool,
 	logger *utils.Logger,
+	myAnimeListURL string,
 ) (models.AnimeSource, string, bool) {
 
 	selectedEpisodeIndex := 0
@@ -446,12 +449,21 @@ func playAnimeLoop(
 			}
 
 			if !disableRPC {
-				go updateDiscordRPC(episodeNames, selectedEpisodeIndex, selectedAnimeName, selectedSource, posterURL, logger, &loggedIn)
+				go updateDiscordRPC(episodeNames, selectedEpisodeIndex, selectedAnimeName, selectedSource, posterURL, myAnimeListURL, logger, &loggedIn)
 			}
 
 			err = cmd.Wait()
 			if err != nil {
 				fmt.Println("VLC çalışırken hata:", err)
+			} else {
+				// Record the last watched episode
+				animeIdentifier := selectedAnimeName // Use anime name as identifier for history
+				if selectedAnimeSlug != "" {
+					animeIdentifier = selectedAnimeSlug
+				} else if selectedAnimeID != 0 {
+					animeIdentifier = strconv.Itoa(selectedAnimeID)
+				}
+				cfx.history.SetLastWatchedEpisode(animeIdentifier, episodes[selectedEpisodeIndex].Number)
 			}
 
 		case "Çözünürlük seç":
@@ -742,7 +754,7 @@ func playAnimeLoop(
 	}
 }
 
-func updateDiscordRPC(episodeNames []string, selectedEpisodeIndex int, selectedAnimeName, selectedSource, posterURL string, logger *utils.Logger, loggedIn *bool) {
+	func updateDiscordRPC(episodeNames []string, selectedEpisodeIndex int, selectedAnimeName, selectedSource, posterURL, myAnimeListURL string, logger *utils.Logger, loggedIn *bool) {
 	if !*loggedIn {
 		var err error
 		*loggedIn, err = rpc.ClientLogin()
@@ -752,17 +764,18 @@ func updateDiscordRPC(episodeNames []string, selectedEpisodeIndex int, selectedA
 		}
 	}
 
-	state := fmt.Sprintf("Bölüm %d: %s", selectedEpisodeIndex+1, episodeNames[selectedEpisodeIndex])
-
-	var err2 error
+	var err2 error // Declare err2
 	*loggedIn, err2 = rpc.DiscordRPC(internal.RPCParams{
-		Details:    selectedAnimeName,
-		State:      state,
-		SmallImage: strings.ToLower(selectedSource),
-		SmallText:  selectedSource,
-		LargeImage: posterURL,
-		LargeText:  selectedAnimeName,
-	}, *loggedIn)
+		AnimeTitle:    selectedAnimeName,
+		EpisodeTitle:  episodeNames[selectedEpisodeIndex],
+		CurrentEpisode: selectedEpisodeIndex + 1,
+		TotalEpisodes:  len(episodeNames),
+		LargeImage:    posterURL, // Use posterURL for LargeImage
+		LargeText:     selectedAnimeName,
+		SmallImage:    strings.ToLower(selectedSource), // Use selectedSource for SmallImage
+		SmallText:     selectedSource,                  // Use selectedSource for SmallText
+		MyAnimeListURL: myAnimeListURL, // Pass MyAnimeListURL
+	}, *loggedIn) // Pass *loggedIn as the second argument
 
 	if err2 != nil {
 		logger.LogError(fmt.Errorf("DiscordRPC hatası: %w", err2))
@@ -776,6 +789,7 @@ type App struct {
 	rofiFlags      *string
 	disableRPC     *bool
 	logger         *utils.Logger
+	history        *history.History // Add history to App struct
 }
 
 func showSelection(cfx App, list []string, label string, promptType string, data interface{}) ([]string, error) {
@@ -855,11 +869,19 @@ func app(cfx *App) error {
 					continue
 				}
 
+				myAnimeListURL := ""
+				if selectedAnime.ID != nil && selectedAnime.Slug != nil {
+					myAnimeListURL = fmt.Sprintf("https://myanimelist.net/anime/%d/%s", *selectedAnime.ID, *selectedAnime.Slug)
+				} else {
+					myAnimeListURL = fmt.Sprintf("https://myanimelist.net/search/all?q=%s&cat=anime", strings.ReplaceAll(selectedAnime.Title, " ", "+"))
+				}
+
 				newSource, newSelectedSource, backPressed := playAnimeLoop(
+					*cfx, // Pass the App context
 					*cfx.source, *cfx.selectedSource, episodes, episodeNames,
 					selectedAnimeID, selectedAnimeSlug, selectedAnime.Title,
 					isMovie, selectedSeasonIndex, *cfx.uiMode, *cfx.rofiFlags,
-					posterURL, *cfx.disableRPC, cfx.logger,
+					posterURL, *cfx.disableRPC, cfx.logger, myAnimeListURL,
 				)
 
 				if newSource != *cfx.source || newSelectedSource != *cfx.selectedSource {
@@ -890,6 +912,19 @@ func app(cfx *App) error {
 func runMain(f *flags.Flags, uiMode string, logger *utils.Logger) {
 	disableRPC := f.DisableRPC
 
+	// Determine data directory for history
+	dataDir := "data" // Or a more robust path like os.UserHomeDir() + "/.anitr-cli"
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		logger.LogError(fmt.Errorf("failed to create data directory: %w", err))
+		os.Exit(1)
+	}
+
+	hist, err := history.NewHistory(dataDir)
+	if err != nil {
+		logger.LogError(fmt.Errorf("failed to initialize history: %w", err))
+		os.Exit(1)
+	}
+
 	currentApp := &App{
 		source:         nil,
 		selectedSource: utils.Ptr(""),
@@ -897,6 +932,7 @@ func runMain(f *flags.Flags, uiMode string, logger *utils.Logger) {
 		rofiFlags:      &f.RofiFlags,
 		disableRPC:     &disableRPC,
 		logger:         logger,
+		history:        hist, // Initialize history
 	}
 
 	for {
@@ -909,6 +945,10 @@ func runMain(f *flags.Flags, uiMode string, logger *utils.Logger) {
 		if err := app(currentApp); err != nil {
 			logger.LogError(err)
 			currentApp.source = nil
+		}
+		// Save history after each app loop iteration (e.g., after an anime session ends)
+		if err := currentApp.history.Save(); err != nil {
+			logger.LogError(fmt.Errorf("failed to save history: %w", err))
 		}
 	}
 }
@@ -931,6 +971,17 @@ var downloadCmd = &cobra.Command{
 			panic(err)
 		}
 		defer logger.Close()
+
+		// Determine data directory for history
+		dataDir := "data" // Or a more robust path like os.UserHomeDir() + "/.anitr-cli"
+		if err := os.MkdirAll(dataDir, 0755); err != nil {
+			logger.LogError(fmt.Errorf("failed to create data directory: %w", err))
+			os.Exit(1)
+		}
+
+		
+
+		
 
 		fmt.Printf("Attempting to download %s episode %d...\n", animeTitle, episodeNumber)
 
@@ -1095,3 +1146,5 @@ func runApp() {
 func main() {
 	runApp()
 }
+
+

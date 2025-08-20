@@ -22,12 +22,12 @@
 
 ## 🎬 Özellikler
 
-- **Cross-Platform**: Bu fork özellikle Windows için geliştirilmiştir.
+- **Platform**: Bu fork özellikle Windows için geliştirilmiştir linux ve macos için denemedim.
 - **AnimeCix ve OpenAnime Entegrasyonu**: Popüler anime platformlarından hızlı arama ve izleme imkanı.
 - **Fansub Seçimi**: OpenAnime üzerinden izlerken favori çeviri grubunuzu seçme özgürlüğü.
 - **Çoklu Arayüz Desteği**: Terminal tabanlı TUI ve minimalist grafik arayüz (Rofi UI) seçenekleri.
 - **Discord Rich Presence**: İzlediğiniz animeyi Discord profilinizde paylaşın.
-- **Otomatik Güncelleme Kontrolü**: Uygulama her başlatıldığında yeni sürüm olup olmadığını kontrol eder.
+- **İndirme Özelliği**: Animecix kaynağı üzerinden animeleri indirebilirsiniz.
 
 --- 
 

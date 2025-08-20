@@ -30,12 +30,17 @@ type UiParams struct {
 
 // RPCParams, Discord Rich Presence için gönderilecek bilgileri içerir.
 type RPCParams struct {
-	Details    string // Aktivite detayı
-	State      string // Kullanıcı durumu
-	LargeImage string // Büyük görselin adı
-	LargeText  string // Büyük görsel üzerine gelindiğinde gösterilecek yazı
-	SmallImage string // Küçük görselin adı
-	SmallText  string // Küçük görsel üzerine gelindiğinde gösterilecek yazı
+	AnimeTitle    string // Anime başlığı
+	EpisodeTitle  string // Bölüm başlığı
+	CurrentEpisode int    // Mevcut bölüm numarası
+	TotalEpisodes  int    // Toplam bölüm sayısı
+	Details       string // Aktivite detayı
+	State         string // Kullanıcı durumu
+	LargeImage    string // Büyük görselin adı
+	LargeText     string // Büyük görsel üzerine gelindiğinde gösterilecek yazı
+	SmallImage    string // Küçük görselin adı
+	SmallText     string // Küçük görsel üzerine gelindiğinde gösterilecek yazı
+	MyAnimeListURL string // MyAnimeList URL'si
 }
 
 // GetStringPtr, map içinden verilen anahtara karşılık gelen değeri *string olarak döner.
