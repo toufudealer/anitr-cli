@@ -353,7 +353,7 @@ func playAnimeLoop(
 	for {
 		watchMenu := []string{}
 		if !isMovie {
-			watchMenu = append(watchMenu, "İzle", "Sonraki bölüm", "Önceki bölüm", "Bölüm seç", "Çözünürlük seç", "İndir")
+			watchMenu = append(watchMenu, "İzle", "Sonraki bölüm", "Önceki bölüm", "Bölüm seç", "Çözünürlük seç", "İndir", "Toplu İndir")
 		} else {
 			watchMenu = append(watchMenu, "İzle", "Çözünürlük seç", "İndir")
 		}
@@ -607,6 +607,129 @@ func playAnimeLoop(
 			fmt.Println("İndirme tamamlandı!")
 			time.Sleep(1500 * time.Millisecond)
 
+		case "Toplu İndir":
+			if isMovie {
+				fmt.Println("\033[31m[!] Film için toplu indirme yapılamaz.\033[0m")
+				time.Sleep(1500 * time.Millisecond)
+				continue
+			}
+
+			appCtx := App{uiMode: &uiMode, rofiFlags: &rofiFlags, logger: logger}
+			selectionString, err := ui.InputFromUser(internal.UiParams{Mode: uiMode, RofiFlags: &rofiFlags, Label: "İndirilecek bölümleri girin (örn: 1,3-5,8 veya all)", Logger: logger})
+			if !utils.CheckErr(err, logger) {
+				continue
+			}
+
+			epsToDownload, err := parseEpisodeSelection(selectionString, len(episodes))
+			if err != nil {
+				fmt.Printf("\033[31m[!] Bölüm seçimi ayrıştırılırken hata: %s\033[0m\n", err)
+				time.Sleep(2000 * time.Millisecond)
+				continue
+			}
+
+			if len(epsToDownload) == 0 {
+				fmt.Println("\033[31m[!] İndirilecek bölüm seçilmedi.\033[0m")
+				time.Sleep(1500 * time.Millisecond)
+				continue
+			}
+
+			// Ask for resolution once for all batch downloads
+			data, _, err := updateWatchAPI(
+				strings.ToLower(selectedSource),
+				episodes,
+				selectedEpisodeIndex, // Use current index to get resolutions, not specific episode
+				selectedAnimeID,
+				selectedSeasonIndex,
+				selectedFansubIdx,
+				isMovie,
+				&selectedAnimeSlug,
+			)
+			if err != nil {
+				fmt.Printf("\033[31m[!] Çözünürlükler yüklenemedi: %s\033[0m\n", err)
+				time.Sleep(1500 * time.Millisecond)
+				continue
+			}
+			labels := data["labels"].([]string)
+			urls := data["urls"].([]string)
+
+			if len(urls) == 0 {
+				fmt.Println("Bu anime için indirme bağlantısı bulunamadı.")
+				time.Sleep(1500 * time.Millisecond)
+				continue
+			}
+
+			selectedResolutionLabel, err := showSelection(appCtx, labels, "Tüm bölümler için çözünürlüğü seç ", "", nil)
+			if !utils.CheckErr(err, logger) {
+				continue
+			}
+
+			batchDownloadIdx := -1
+			for i, label := range labels {
+				if label == selectedResolutionLabel {
+					batchDownloadIdx = i
+					break
+				}
+			}
+
+			if batchDownloadIdx == -1 {
+				fmt.Printf("\033[31m[!] Geçersiz çözünürlük seçimi: %s\033[0m\n", selectedResolutionLabel)
+				time.Sleep(1500 * time.Millisecond)
+				continue
+			}
+
+			for _, epIdx := range epsToDownload {
+				episode := episodes[epIdx]
+				fmt.Printf("İndiriliyor: %s - E%02d...\n", selectedAnimeName, episode.Number)
+
+				// Re-fetch watch data for each episode to get correct URLs for that episode
+				// This is important because updateWatchAPI might return different URLs per episode
+				// even if the resolution label is the same.
+				currentEpisodeWatchData, _, err := updateWatchAPI(
+					strings.ToLower(selectedSource),
+					episodes,
+					epIdx,
+					selectedAnimeID,
+					int(episode.Extra["season_num"].(float64)) - 1,
+					selectedFansubIdx,
+					isMovie,
+					&selectedAnimeSlug,
+				)
+				if err != nil {
+					fmt.Printf("\033[31m[!] Bölüm %d için indirme bağlantıları yüklenemedi: %s\033[0m\n", episode.Number, err)
+					continue // Skip this episode and try next
+				}
+
+				currentEpisodeUrls := currentEpisodeWatchData["urls"].([]string)
+				currentEpisodeLabels := currentEpisodeWatchData["labels"].([]string)
+
+				// Find the URL corresponding to the selected resolution for the current episode
+				currentDownloadURL := ""
+				for i, label := range currentEpisodeLabels {
+					if label == selectedResolutionLabel {
+						currentDownloadURL = currentEpisodeUrls[i]
+						break
+					}
+				}
+
+				if currentDownloadURL == "" {
+					fmt.Printf("\033[31m[!] Bölüm %d için seçilen çözünürlükte indirme bağlantısı bulunamadı.\033[0m\n", episode.Number)
+					continue
+				}
+
+				filename := fmt.Sprintf("%s - E%02d.mp4", selectedAnimeName, episode.Number)
+				downloadPath := filename
+
+				err = downloader.DownloadFile(currentDownloadURL, downloadPath)
+				if err != nil {
+					fmt.Printf("\033[31m[!] Dosya indirilirken hata (%s - E%02d): %v\033[0m\n", selectedAnimeName, episode.Number, err)
+				} else {
+					fmt.Printf("İndirme tamamlandı: %s - E%02d\n", selectedAnimeName, episode.Number)
+				}
+				time.Sleep(500 * time.Millisecond) // Small delay between downloads
+			}
+			fmt.Println("Tüm toplu indirmeler tamamlandı!")
+			time.Sleep(1500 * time.Millisecond)
+
 		case "Anime ara":
 			for {
 				appCtx := App{uiMode: &uiMode, rofiFlags: &rofiFlags, logger: logger}
@@ -665,6 +788,74 @@ func updateDiscordRPC(episodeNames []string, selectedEpisodeIndex int, selectedA
 	if err2 != nil {
 		logger.LogError(fmt.Errorf("DiscordRPC hatası: %w", err2))
 	}
+}
+
+// parseEpisodeSelection parses a string like "1,3-5,8" or "all" into a slice of 0-indexed episode numbers.
+func parseEpisodeSelection(selection string, totalEpisodes int) ([]int, error) {
+	var episodesToDownload []int
+	selection = strings.ReplaceAll(selection, " ", "") // Remove spaces
+
+	if strings.ToLower(selection) == "all" {
+		for i := 0; i < totalEpisodes; i++ {
+			episodesToDownload = append(episodesToDownload, i) // 0-indexed
+		}
+		return episodesToDownload, nil
+	}
+
+	parts := strings.Split(selection, ",")
+	for _, part := range parts {
+		if strings.Contains(part, "-") {
+			rangeParts := strings.Split(part, "-")
+			if len(rangeParts) != 2 {
+				return nil, fmt.Errorf("geçersiz aralık formatı: %s", part)
+			}
+			start, err := strconv.Atoi(rangeParts[0])
+			if err != nil {
+				return nil, fmt.Errorf("geçersiz başlangıç bölümü: %s", rangeParts[0])
+			}
+			end, err := strconv.Atoi(rangeParts[1])
+			if err != nil {
+				return nil, fmt.Errorf("geçersiz bitiş bölümü: %s", rangeParts[1])
+			}
+			if start < 1 || end > totalEpisodes || start > end {
+				return nil, fmt.Errorf("geçersiz bölüm aralığı: %d-%d (toplam %d bölüm var)", start, end, totalEpisodes)
+			}
+			for i := start; i <= end; i++ {
+				episodesToDownload = append(episodesToDownload, i-1) // Convert to 0-indexed
+			}
+		} else {
+			epNum, err := strconv.Atoi(part)
+			if err != nil {
+				return nil, fmt.Errorf("geçersiz bölüm numarası: %s", part)
+			}
+			if epNum < 1 || epNum > totalEpisodes {
+				return nil, fmt.Errorf("geçersiz bölüm numarası: %d (toplam %d bölüm var)", epNum, totalEpisodes)
+			}
+			episodesToDownload = append(episodesToDownload, epNum-1) // Convert to 0-indexed
+		}
+	}
+	sort.Ints(episodesToDownload)
+	episodesToDownload = removeDuplicates(episodesToDownload) // Helper to remove duplicates
+	return episodesToDownload, nil
+}
+
+// removeDuplicates removes duplicate integers from a sorted slice.
+func removeDuplicates(elements []int) []int {
+	if len(elements) == 0 {
+		return elements
+	}
+	// Create a map to store unique elements.
+	encountered := map[int]bool{}
+	// Create a new slice to store unique elements in order.
+	result := []int{}
+
+	for v := range elements {
+		if !encountered[elements[v]] {
+			encountered[elements[v]] = true
+			result = append(result, elements[v])
+		}
+	}
+	return result
 }
 
 type App struct {
