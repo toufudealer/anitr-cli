@@ -360,7 +360,7 @@ func playAnimeLoop(
 	for {
 		watchMenu := []string{}
 		if !isMovie {
-			watchMenu = append(watchMenu, "İzle", "Sonraki bölüm", "Önceki bölüm", "Bölüm seç", "Çözünürlük seç", "İndir", "Toplu İndir")
+			watchMenu = append(watchMenu, "İzle", "Sonraki bölüm", "Önceki bölüm", "Bölüm seç", "Çözünürlük seç", "İndir")
 		} else {
 			watchMenu = append(watchMenu, "İzle", "Çözünürlük seç", "İndir")
 		}
@@ -488,15 +488,16 @@ func playAnimeLoop(
 			selectedResolutionIdx = slices.Index(labels, selected)
 
 		case "Bölüm seç":
+			episodeMenu := append([]string{"Geri"}, episodeNames...)
 			appCtx := App{uiMode: &uiMode, rofiFlags: &rofiFlags, logger: logger}
-			selectedSlice, err := showSelection(appCtx, episodeNames, "Bölüm seç ", "", nil)
-			if !utils.CheckErr(err, logger) {
-				continue
-			}
-			if len(selectedSlice) == 0 {
+			selectedSlice, err := showSelection(appCtx, episodeMenu, "Bölüm seç ", "", nil)
+			if !utils.CheckErr(err, logger) || len(selectedSlice) == 0 {
 				continue
 			}
 			selected := selectedSlice[0]
+			if selected == "Geri" {
+				continue
+			}
 			if !slices.Contains(episodeNames, selected) {
 				fmt.Printf("[!] Geçersiz bölüm seçimi: %s\n", selected)
 				time.Sleep(1500 * time.Millisecond)
@@ -556,128 +557,86 @@ func playAnimeLoop(
 			selectedFansubIdx = slices.Index(fansubNames, selected)
 
 		case "İndir":
-			downloadEpisodeIndex := selectedEpisodeIndex
-			if !isMovie {
-				appCtx := App{uiMode: &uiMode, rofiFlags: &rofiFlags, logger: logger}
-				selectedSlice, err := showSelection(appCtx, episodeNames, "İndirilecek bölümü seç ", "", nil)
-				if !utils.CheckErr(err, logger) {
-					continue
-				}
-				if len(selectedSlice) == 0 {
-					continue
-				}
-				selected := selectedSlice[0]
-				downloadEpisodeIndex = slices.Index(episodeNames, selected)
-			} else {
-				// Filmler için sadece 0. indeks kullan
-				downloadEpisodeIndex = 0
-			}
-
-			data, _, err := updateWatchAPI(
-				strings.ToLower(selectedSource),
-				episodes,
-				downloadEpisodeIndex,
-				selectedAnimeID,
-				selectedSeasonIndex,
-				selectedFansubIdx,
-				isMovie,
-				&selectedAnimeSlug,
-			)
-			if err != nil {
-				fmt.Printf("[!] İndirme bağlantıları yüklenemedi: %s\n", err)
-				time.Sleep(1500 * time.Millisecond)
-				continue
-			}
-
-			labels := data["labels"].([]string)
-			urls := data["urls"].([]string)
-
-			if len(urls) == 0 {
-				fmt.Println("Bu bölüm için indirme bağlantısı bulunamadı.")
-				time.Sleep(1500 * time.Millisecond)
-				continue
-			}
-
-			appCtx := App{uiMode: &uiMode, rofiFlags: &rofiFlags, logger: logger}
-			selectedResolutionLabelSlice, err := showSelection(appCtx, labels, "İndirilecek çözünürlüğü seç ", "", nil)
-			if !utils.CheckErr(err, logger) {
-				continue
-			}
-			if len(selectedResolutionLabelSlice) == 0 {
-				continue
-			}
-			selectedResolutionLabel := selectedResolutionLabelSlice[0]
-
-			selectedDownloadIdx := -1
-			for i, label := range labels {
-				if label == selectedResolutionLabel {
-					selectedDownloadIdx = i
-					break
-				}
-			}
-
-			if selectedDownloadIdx == -1 {
-				fmt.Printf("[!] Geçersiz çözünürlük seçimi: %s\n", selectedResolutionLabel)
-				time.Sleep(1500 * time.Millisecond)
-				continue
-			}
-
-			downloadURL := urls[selectedDownloadIdx]
-			fmt.Printf("İndirme URL'si bulundu: %s\n", downloadURL)
-
-			filename := fmt.Sprintf("%s - E%02d.mp4", selectedAnimeName, episodes[downloadEpisodeIndex].Number)
-			downloadPath := filename
-
-			fmt.Printf("İndiriliyor: %s\n", downloadPath)
-			err = downloader.DownloadFile(downloadURL, downloadPath)
-			if err != nil {
-				fmt.Printf("Dosya indirilirken hata: %v\n", err)
-				time.Sleep(1500 * time.Millisecond)
-				continue
-			}
-
-			fmt.Println("İndirme tamamlandı!")
-			time.Sleep(1500 * time.Millisecond)
-
-		case "Toplu İndir":
 			if isMovie {
-				fmt.Println("[!] Film için toplu indirme yapılamaz.")
+				// Handle single movie download
+				data, _, err := updateWatchAPI(
+					strings.ToLower(selectedSource), episodes, 0, selectedAnimeID, 0, selectedFansubIdx, isMovie, &selectedAnimeSlug,
+				)
+				if err != nil {
+					fmt.Printf("[!] İndirme bağlantıları yüklenemedi: %s\n", err)
+					time.Sleep(1500 * time.Millisecond)
+					continue
+				}
+				labels := data["labels"].([]string)
+				urls := data["urls"].([]string)
+				if len(urls) == 0 {
+					fmt.Println("Bu film için indirme bağlantısı bulunamadı.")
+					time.Sleep(1500 * time.Millisecond)
+					continue
+				}
+				appCtx := App{uiMode: &uiMode, rofiFlags: &rofiFlags, logger: logger}
+				selectedResolutionLabelSlice, err := showSelection(appCtx, labels, "İndirilecek çözünürlüğü seç ", "", nil)
+				if !utils.CheckErr(err, logger) || len(selectedResolutionLabelSlice) == 0 {
+					continue
+				}
+				selectedResolutionLabel := selectedResolutionLabelSlice[0]
+				selectedDownloadIdx := slices.Index(labels, selectedResolutionLabel)
+				if selectedDownloadIdx == -1 {
+					fmt.Printf("[!] Geçersiz çözünürlük seçimi: %s\n", selectedResolutionLabel)
+					time.Sleep(1500 * time.Millisecond)
+					continue
+				}
+				downloadURL := urls[selectedDownloadIdx]
+				downloadDir := fmt.Sprintf("indirilenler/%s", selectedAnimeName)
+				if err := os.MkdirAll(downloadDir, 0755); err != nil {
+					fmt.Printf("Dizin oluşturulurken hata: %v\n", err)
+					time.Sleep(1500 * time.Millisecond)
+					continue
+				}
+				filename := fmt.Sprintf("%s/%s.mp4", downloadDir, selectedAnimeName)
+				fmt.Printf("İndiriliyor: %s\n", filename)
+				err = downloader.DownloadFile(downloadURL, filename)
+				if err != nil {
+					fmt.Printf("Dosya indirilirken hata: %v\n", err)
+				} else {
+					fmt.Println("İndirme tamamlandı!")
+				}
 				time.Sleep(1500 * time.Millisecond)
 				continue
 			}
 
+			// Batch download for series
+			episodeMenu := append([]string{"Geri"}, episodeNames...)
 			appCtx := App{uiMode: &uiMode, rofiFlags: &rofiFlags, logger: logger}
-			selectedEpisodeTitles, err := showSelection(appCtx, episodeNames, "İndirilecek bölümleri seç (Space ile işaretle, Enter ile onayla)", "multi-select", nil)
-			if !utils.CheckErr(err, logger) {
+			selectedEpisodeTitles, err := showSelection(appCtx, episodeMenu, "İndirilecek bölümleri seç (Space ile işaretle, Enter ile onayla)", "multi-select", nil)
+			if !utils.CheckErr(err, logger) || len(selectedEpisodeTitles) == 0 {
 				continue
 			}
 
-			if len(selectedEpisodeTitles) == 0 {
-				fmt.Println("[!] İndirilecek bölüm seçilmedi.")
-				time.Sleep(1500 * time.Millisecond)
+			if len(selectedEpisodeTitles) == 1 && selectedEpisodeTitles[0] == "Geri" {
 				continue
 			}
 
-			// Convert selected episode titles back to indices
 			epsToDownload := []int{}
 			for _, title := range selectedEpisodeTitles {
+				if title == "Geri" {
+					continue
+				}
 				idx := slices.Index(episodeNames, title)
 				if idx != -1 {
 					epsToDownload = append(epsToDownload, idx)
 				}
 			}
-			sort.Ints(epsToDownload) // Ensure sorted order
+			sort.Ints(epsToDownload)
 
-			// Ask for resolution once for all batch downloads
+			if len(epsToDownload) == 0 {
+				fmt.Println("[!] İndirilecek bölüm seçilmedi.")
+				time.Sleep(1500 * time.Millisecond)
+				continue
+			}
+
 			data, _, err := updateWatchAPI(
-				strings.ToLower(selectedSource),
-				episodes,
-				selectedEpisodeIndex, // Use current index to get resolutions, not specific episode
-				selectedAnimeID,
-				selectedSeasonIndex,
-				selectedFansubIdx,
-				isMovie,
-				&selectedAnimeSlug,
+				strings.ToLower(selectedSource), episodes, selectedEpisodeIndex, selectedAnimeID, selectedSeasonIndex, selectedFansubIdx, isMovie, &selectedAnimeSlug,
 			)
 			if err != nil {
 				fmt.Printf("[!] Çözünürlükler yüklenemedi: %s\n", err)
@@ -685,61 +644,33 @@ func playAnimeLoop(
 				continue
 			}
 			labels := data["labels"].([]string)
-			urls := data["urls"].([]string)
-
-			if len(urls) == 0 {
+			if len(labels) == 0 {
 				fmt.Println("Bu anime için indirme bağlantısı bulunamadı.")
 				time.Sleep(1500 * time.Millisecond)
 				continue
 			}
 
 			selectedResolutionLabelsSlice, err := showSelection(appCtx, labels, "Tüm bölümler için çözünürlüğü seç ", "", nil)
-			if !utils.CheckErr(err, logger) {
-				continue
-			}
-			if len(selectedResolutionLabelsSlice) == 0 {
+			if !utils.CheckErr(err, logger) || len(selectedResolutionLabelsSlice) == 0 {
 				continue
 			}
 			selectedResolutionLabel := selectedResolutionLabelsSlice[0]
 
-			batchDownloadIdx := -1
-			for i, label := range labels {
-				if label == selectedResolutionLabel {
-					batchDownloadIdx = i
-					break
-				}
-			}
-
-			if batchDownloadIdx == -1 {
-				fmt.Printf("[!] Geçersiz çözünürlük seçimi: %s\n", selectedResolutionLabel)
-				time.Sleep(1500 * time.Millisecond)
-				continue
-			}
-
 			for _, epIdx := range epsToDownload {
 				episode := episodes[epIdx]
-				fmt.Printf("İndiriliyor: %s - E%02d...\n", selectedAnimeName, episode.Number)
+				fmt.Printf("İndiriliyor: %s - %s...\n", selectedAnimeName, episode.Title)
 
-				// Re-fetch watch data for each episode to get correct URLs for that episode
 				currentEpisodeWatchData, _, err := updateWatchAPI(
-					strings.ToLower(selectedSource),
-					episodes,
-					epIdx,
-					selectedAnimeID,
-					int(episode.Extra["season_num"].(float64)) - 1,
-					selectedFansubIdx,
-				isMovie,
-					&selectedAnimeSlug,
+					strings.ToLower(selectedSource), episodes, epIdx, selectedAnimeID, int(episode.Extra["season_num"].(float64))-1, selectedFansubIdx, isMovie, &selectedAnimeSlug,
 				)
 				if err != nil {
-					fmt.Printf("[!] Bölüm %d için indirme bağlantıları yüklenemedi: %s\n", episode.Number, err)
-					continue // Skip this episode and try next
+					fmt.Printf("[!] Bölüm %s için indirme bağlantıları yüklenemedi: %s\n", episode.Title, err)
+					continue
 				}
 
 				currentEpisodeUrls := currentEpisodeWatchData["urls"].([]string)
 				currentEpisodeLabels := currentEpisodeWatchData["labels"].([]string)
 
-				// Find the URL corresponding to the selected resolution for the current episode
 				currentDownloadURL := ""
 				for i, label := range currentEpisodeLabels {
 					if label == selectedResolutionLabel {
@@ -749,22 +680,30 @@ func playAnimeLoop(
 				}
 
 				if currentDownloadURL == "" {
-					fmt.Printf("[!] Bölüm %d için seçilen çözünürlükte indirme bağlantısı bulunamadı.\n", episode.Number)
+					if len(currentEpisodeUrls) > 0 {
+						currentDownloadURL = currentEpisodeUrls[0]
+						fmt.Printf("[!] '%s' çözünürlüğü bulunamadı, '%s' indiriliyor.\n", selectedResolutionLabel, currentEpisodeLabels[0])
+					} else {
+						fmt.Printf("[!] Bölüm %s için indirme bağlantısı bulunamadı.\n", episode.Title)
+						continue
+					}
+				}
+
+				downloadDir := fmt.Sprintf("indirilenler/%s", selectedAnimeName)
+				if err := os.MkdirAll(downloadDir, 0755); err != nil {
+					fmt.Printf("Dizin oluşturulurken hata: %v\n", err)
 					continue
 				}
-
-				filename := fmt.Sprintf("%s - E%02d.mp4", selectedAnimeName, episode.Number)
-				downloadPath := filename
-
-				err = downloader.DownloadFile(currentDownloadURL, downloadPath)
+				filename := fmt.Sprintf("%s/%s.mp4", downloadDir, episode.Title)
+				err = downloader.DownloadFile(currentDownloadURL, filename)
 				if err != nil {
-					fmt.Printf("[!] Dosya indirilirken hata (%s - E%02d): %v\n", selectedAnimeName, episode.Number, err)
+					fmt.Printf("[!] Dosya indirilirken hata (%s): %v\n", filename, err)
 				} else {
-					fmt.Printf("İndirme tamamlandı: %s - E%02d\n", selectedAnimeName, episode.Number)
+					fmt.Printf("İndirme tamamlandı: %s\n", filename)
 				}
-				time.Sleep(500 * time.Millisecond) // Small delay between downloads
+				time.Sleep(500 * time.Millisecond)
 			}
-			fmt.Println("Tüm toplu indirmeler tamamlandı!")
+			fmt.Println("Tüm indirmeler tamamlandı!")
 			time.Sleep(1500 * time.Millisecond)
 
 		case "Anime ara":
@@ -1081,8 +1020,12 @@ var downloadCmd = &cobra.Command{
 		downloadURL := urls[0]
 		fmt.Printf("Found download URL: %s\n", downloadURL)
 
-		filename := fmt.Sprintf("%s - E%02d.mp4", selectedAnime.Title, episodeNumber)
-		downloadPath := filename
+		downloadDir := fmt.Sprintf("indirilenler/%s", selectedAnime.Title)
+		if err := os.MkdirAll(downloadDir, 0755); err != nil {
+			fmt.Printf("Dizin oluşturulurken hata: %v\n", err)
+			os.Exit(1)
+		}
+		downloadPath := fmt.Sprintf("%s/%s.mp4", downloadDir, targetEpisode.Title)
 
 		fmt.Printf("İndiriliyor: %s\n", downloadPath)
 		err = downloader.DownloadFile(downloadURL, downloadPath)

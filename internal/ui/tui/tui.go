@@ -79,7 +79,9 @@ func (d slimDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	}
 
 	prefix := ""
-	if d.multiSelect {
+	isGeri := i.title == "Geri"
+
+	if d.multiSelect && !isGeri {
 		checkbox := "[ ]"
 		if i.selected {
 			checkbox = "[x]"
